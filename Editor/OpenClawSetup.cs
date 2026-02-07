@@ -48,30 +48,8 @@ namespace OpenClaw.Unity.Editor
             return !EditorApplication.isPlaying;
         }
         
-        [MenuItem("Assets/Create/OpenClaw/Config", false, 100)]
-        public static void CreateConfig()
-        {
-            var config = ScriptableObject.CreateInstance<OpenClawConfig>();
-            
-            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            if (string.IsNullOrEmpty(path))
-            {
-                path = "Assets";
-            }
-            else if (System.IO.Path.GetExtension(path) != "")
-            {
-                path = System.IO.Path.GetDirectoryName(path);
-            }
-            
-            var assetPath = AssetDatabase.GenerateUniqueAssetPath($"{path}/OpenClawConfig.asset");
-            AssetDatabase.CreateAsset(config, assetPath);
-            AssetDatabase.SaveAssets();
-            
-            EditorUtility.FocusProjectWindow();
-            Selection.activeObject = config;
-            
-            Debug.Log($"[OpenClaw] Config created at {assetPath}. Move to Resources folder for auto-loading.");
-        }
+        // Note: Config creation menu is provided by [CreateAssetMenu] on OpenClawConfig.cs
+        // Path: Assets/Create/OpenClaw/Config
         
         [MenuItem("Window/OpenClaw Plugin/Quick Setup", false, 1)]
         public static void QuickSetup()
