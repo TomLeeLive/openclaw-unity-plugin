@@ -374,7 +374,7 @@ openclaw gateway status
    ```
 
 2. **Check in Unity Window**
-   - Open `Window > OpenClaw Bridge`
+   - Open `Window > OpenClaw Plugin`
    - Check Connection Status
    - Click "Test Connection" button
 

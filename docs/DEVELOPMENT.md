@@ -372,7 +372,7 @@ openclaw gateway status
    ```
 
 2. **Unity 창에서 확인**
-   - `Window > OpenClaw Bridge` 열기
+   - `Window > OpenClaw Plugin` 열기
    - Connection Status 확인
    - "Test Connection" 버튼 클릭
 

@@ -34,7 +34,7 @@ openclaw gateway start
 ### 2. Unity 프로젝트 준비
 
 1. OpenClaw Unity Plugin 설치 (README.md 참조)
-2. `Window > OpenClaw Bridge` 열기
+2. `Window > OpenClaw Plugin` 열기
 3. Gateway URL 확인: `http://localhost:18789`
 4. "OpenClaw Connected" 상태 확인
 

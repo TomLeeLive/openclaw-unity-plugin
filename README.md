@@ -56,7 +56,7 @@ openclaw unity status
 
 ### 2. Configure in Unity
 
-1. Open `Window > OpenClaw Bridge`
+1. Open `Window > OpenClaw Plugin`
 2. Set Gateway URL: `http://localhost:18789` (default)
 3. Connection is automatic when Unity starts
 4. Status shows green when connected
@@ -267,7 +267,7 @@ Script recompilation requested. Unity will reload shortly.
 ### Bridge won't connect
 1. Check Gateway status: `openclaw gateway status`
 2. Verify URL: default is `http://localhost:18789`
-3. Check `Window > OpenClaw Bridge` for errors
+3. Check `Window > OpenClaw Plugin` for errors
 
 ### Connection lost during Play mode transition
 - Plugin uses `SessionState` to survive domain reloads

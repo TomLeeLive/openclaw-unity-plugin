@@ -34,7 +34,7 @@ openclaw gateway start
 ### 2. Prepare Unity Project
 
 1. Install OpenClaw Unity Plugin (see README.md)
-2. Open `Window > OpenClaw Bridge`
+2. Open `Window > OpenClaw Plugin`
 3. Verify Gateway URL: `http://localhost:18789`
 4. Confirm "OpenClaw Connected" status
 

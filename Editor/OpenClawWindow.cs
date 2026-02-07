@@ -19,10 +19,10 @@ namespace OpenClaw.Unity.Editor
         private bool _showTools = true;
         private bool _showLogs = true;
         
-        [MenuItem("Window/OpenClaw Bridge")]
+        [MenuItem("Window/OpenClaw Plugin")]
         public static void ShowWindow()
         {
-            var window = GetWindow<OpenClawWindow>("OpenClaw Bridge");
+            var window = GetWindow<OpenClawWindow>("OpenClaw Plugin");
             window.minSize = new Vector2(350, 400);
         }
         

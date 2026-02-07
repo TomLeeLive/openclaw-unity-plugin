@@ -28,16 +28,16 @@ namespace OpenClaw.Unity.Editor
             }
             
             // Create bridge GameObject
-            var bridgeGO = new GameObject("OpenClaw Bridge");
+            var bridgeGO = new GameObject("OpenClaw Plugin");
             bridgeGO.AddComponent<OpenClawBridge>();
             
             // Add status overlay component
             bridgeGO.AddComponent<OpenClawStatusOverlay>();
             
-            Undo.RegisterCreatedObjectUndo(bridgeGO, "Add OpenClaw Bridge");
+            Undo.RegisterCreatedObjectUndo(bridgeGO, "Add OpenClaw Plugin");
             Selection.activeGameObject = bridgeGO;
             
-            Debug.Log("[OpenClaw] Bridge added to scene. Configure in Window > OpenClaw Bridge.");
+            Debug.Log("[OpenClaw] Bridge added to scene. Configure in Window > OpenClaw Plugin.");
             
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         }
@@ -73,7 +73,7 @@ namespace OpenClaw.Unity.Editor
             Debug.Log($"[OpenClaw] Config created at {assetPath}. Move to Resources folder for auto-loading.");
         }
         
-        [MenuItem("Window/OpenClaw Bridge/Quick Setup", false, 1)]
+        [MenuItem("Window/OpenClaw Plugin/Quick Setup", false, 1)]
         public static void QuickSetup()
         {
             // 1. Ensure config exists
@@ -106,7 +106,7 @@ namespace OpenClaw.Unity.Editor
             Debug.Log("[OpenClaw] Quick setup complete! Configure your gateway URL in the window.");
         }
         
-        [MenuItem("Window/OpenClaw Bridge/Documentation", false, 100)]
+        [MenuItem("Window/OpenClaw Plugin/Documentation", false, 100)]
         public static void OpenDocumentation()
         {
             Application.OpenURL("https://github.com/TomLeeLive/openclaw-unity-plugin");

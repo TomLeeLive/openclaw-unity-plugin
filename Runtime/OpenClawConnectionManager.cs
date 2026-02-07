@@ -161,7 +161,7 @@ namespace OpenClaw.Unity
             
             if (_config == null)
             {
-                Debug.LogWarning("[OpenClaw] No config found. Please create one via Window > OpenClaw Bridge.");
+                Debug.LogWarning("[OpenClaw] No config found. Please create one via Window > OpenClaw Plugin.");
                 return;
             }
             

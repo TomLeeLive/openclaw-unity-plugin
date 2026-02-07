@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-02-07
+
+### Changed
+- Renamed "OpenClaw Bridge" to "OpenClaw Plugin" throughout codebase
+  - Menu: `Window > OpenClaw Plugin`
+  - Window title: "OpenClaw Plugin"
+  - GameObject name: "OpenClaw Plugin"
+  - All documentation updated
+
 ## [1.2.1] - 2026-02-07
 
 ### Added
