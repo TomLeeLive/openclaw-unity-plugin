@@ -86,7 +86,7 @@ git clone https://github.com/TomLeeLive/openclaw-unity-skill.git ~/.openclaw/wor
 ```
 
 The skill provides:
-- Quick reference for all 44 tools
+- Quick reference for all 50 tools
 - Common workflow patterns (scene inspection, UI testing, etc.)
 - Detailed parameter documentation
 - Troubleshooting guides
@@ -98,35 +98,41 @@ The skill provides:
 - **[Development Guide](Documentation~/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
 - **[Testing Guide](Documentation~/TESTING.md)** - Complete testing guide with examples
 
-## Available Tools (44 total)
+## Available Tools (50 total)
 
-### Console
+### Console (3 tools)
 | Tool | Description |
 |------|-------------|
 | `console.getLogs` | Get Unity console logs (with type filter) |
+| `console.getErrors` | Get error/exception logs (with optional warnings) |
 | `console.clear` | Clear captured logs |
 
-### Scene
+### Scene (5 tools)
 | Tool | Description |
 |------|-------------|
 | `scene.list` | List all scenes in build settings |
 | `scene.getActive` | Get active scene info |
 | `scene.getData` | Get scene hierarchy data |
-| `scene.load` | Load a scene by name |
+| `scene.load` | Load a scene by name (Play mode) |
+| `scene.open` | Open a scene in Editor mode |
 
-### GameObject
+### GameObject (7 tools)
 | Tool | Description |
 |------|-------------|
 | `gameobject.find` | Find by name, tag, or component type |
 | `gameobject.create` | Create GameObject or primitive |
 | `gameobject.destroy` | Destroy a GameObject |
+| `gameobject.delete` | Delete a GameObject (alias for destroy) |
 | `gameobject.getData` | Get detailed object data |
 | `gameobject.setActive` | Enable/disable object |
 | `gameobject.setParent` | Change parent |
 
-### Transform
+### Transform (6 tools)
 | Tool | Description |
 |------|-------------|
+| `transform.getPosition` | Get world position (x, y, z) |
+| `transform.getRotation` | Get rotation in Euler angles |
+| `transform.getScale` | Get local scale |
 | `transform.setPosition` | Set world position |
 | `transform.setRotation` | Set rotation (Euler) |
 | `transform.setScale` | Set local scale |
@@ -212,7 +218,7 @@ The skill provides:
 │                         │                                    │
 │                         ▼                                    │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │           OpenClawTools (44 tools)                      │ │
+│  │           OpenClawTools (50 tools)                      │ │
 │  │                                                          │ │
 │  │  • Scene/GameObject/Component manipulation              │ │
 │  │  • Debug tools (screenshot, hierarchy)                  │ │
