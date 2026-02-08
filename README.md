@@ -1,5 +1,9 @@
 # 🐾 OpenClaw Unity Plugin
 
+> **TL;DR:** Vibe-code your game development remotely from anywhere! 🌍
+> 
+> **한줄요약:** 이제 집밖에서도 원격으로 바이브코딩으로 게임 개발 가능합니다! 🎮
+
 Connect Unity to [OpenClaw](https://github.com/openclaw/openclaw) AI assistant via HTTP. Works in **Editor mode** without hitting Play!
 
 [![Unity](https://img.shields.io/badge/Unity-2021.3+-black?logo=unity)](https://unity.com)
