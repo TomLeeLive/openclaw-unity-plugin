@@ -98,6 +98,7 @@ namespace OpenClaw.Unity
                 { "input.mouseScroll", InputMouseScroll },
                 { "input.getMousePosition", InputGetMousePosition },
                 { "input.clickUI", InputClickUI },
+                { "input.click", InputClickUI }, // Alias for clickUI
             };
         }
         
