@@ -453,12 +453,9 @@ namespace OpenClaw.Unity
                 if (includePosition)
                 {
                     var t = go.transform;
-                    data["position"] = new Dictionary<string, float>
-                    {
-                        { "x", t.position.x },
-                        { "y", t.position.y },
-                        { "z", t.position.z }
-                    };
+                    data["x"] = t.position.x;
+                    data["y"] = t.position.y;
+                    data["z"] = t.position.z;
                 }
                 
                 // Add parent info
