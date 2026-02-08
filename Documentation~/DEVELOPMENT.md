@@ -1,23 +1,23 @@
 # 🛠️ OpenClaw Unity Plugin - Development Guide
 
-이 문서는 OpenClaw Unity Plugin의 개발 가이드입니다. 아키텍처, 새로운 도구 추가 방법, 디버깅 팁 등을 다룹니다.
+This document is the development guide for OpenClaw Unity Plugin. It covers architecture, how to add new tools, and debugging tips.
 
-## 목차
+## Table of Contents
 
-1. [아키텍처 개요](#아키텍처-개요)
-2. [프로젝트 구조](#프로젝트-구조)
-3. [핵심 컴포넌트](#핵심-컴포넌트)
-4. [새로운 도구 추가하기](#새로운-도구-추가하기)
-5. [JSON 파싱](#json-파싱)
-6. [Play Mode 전환 처리](#play-mode-전환-처리)
-7. [디버깅](#디버깅)
-8. [기여 가이드라인](#기여-가이드라인)
+1. [Architecture Overview](#architecture-overview)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [Adding New Tools](#adding-new-tools)
+5. [JSON Parsing](#json-parsing)
+6. [Play Mode Transition Handling](#play-mode-transition-handling)
+7. [Debugging](#debugging)
+8. [Contribution Guidelines](#contribution-guidelines)
 
 ---
 
-## 아키텍처 개요
+## Architecture Overview
 
-### 통신 흐름
+### Communication Flow
 
 ```
 ┌─────────────┐     HTTP      ┌─────────────────┐     Tool Call    ┌─────────────┐
@@ -35,49 +35,51 @@
                                       │◄──────────────────────────────────│
 ```
 
-### 핵심 설계 원칙
+### Core Design Principles
 
-1. **Edit Mode 지원**: Play 버튼 없이 Editor에서 AI 도구 사용 가능
-2. **자동 재연결**: 연결 끊김 시 자동 복구
-3. **Play Mode 전환 생존**: SessionState로 도메인 리로드 생존
-4. **Main Thread 실행**: Unity API는 Main Thread에서만 호출
+1. **Edit Mode Support**: Use AI tools in Editor without pressing Play
+2. **Auto Reconnection**: Automatic recovery on connection loss
+3. **Play Mode Transition Survival**: Survives domain reload via SessionState
+4. **Main Thread Execution**: Unity API calls only on Main Thread
 
 ---
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 openclaw-unity-plugin/
-├── package.json              # UPM 패키지 정의
-├── README.md                 # 사용자 문서
-├── CHANGELOG.md              # 버전 히스토리
+├── package.json              # UPM package definition
+├── README.md                 # User documentation
+├── CHANGELOG.md              # Version history
 │
-├── Runtime/                  # 런타임 코드 (Editor + Play)
+├── Runtime/                  # Runtime code (Editor + Play)
 │   ├── OpenClaw.Unity.asmdef
-│   ├── OpenClawConnectionManager.cs   # HTTP 통신 담당
-│   ├── OpenClawTools.cs               # 44개 도구 구현
+│   ├── OpenClawConnectionManager.cs   # HTTP communication
+│   ├── OpenClawTools.cs               # 44 tool implementations
 │   ├── OpenClawBridge.cs              # MonoBehaviour (Play Mode)
-│   ├── OpenClawConfig.cs              # 설정 ScriptableObject
-│   ├── OpenClawLogger.cs              # 로그 캡처
-│   └── OpenClawStatusOverlay.cs       # 상태 오버레이 UI
+│   ├── OpenClawConfig.cs              # Settings ScriptableObject
+│   ├── OpenClawLogger.cs              # Log capture
+│   └── OpenClawStatusOverlay.cs       # Status overlay UI
 │
-├── Editor/                   # Editor 전용 코드
+├── Editor/                   # Editor-only code
 │   ├── OpenClaw.Unity.Editor.asmdef
-│   ├── OpenClawEditorBridge.cs        # [InitializeOnLoad] 진입점
-│   └── OpenClawWindow.cs              # 설정 창
+│   ├── OpenClawEditorBridge.cs        # [InitializeOnLoad] entry point
+│   └── OpenClawWindow.cs              # Settings window
 │
-└── docs/                     # 문서
-    ├── DEVELOPMENT.md        # 개발 가이드 (이 문서)
-    └── TESTING.md            # 테스트 가이드
+└── docs/                     # Documentation
+    ├── DEVELOPMENT.md        # Development guide (Korean)
+    ├── DEVELOPMENT_EN.md     # Development guide (this file)
+    ├── TESTING.md            # Testing guide (Korean)
+    └── TESTING_EN.md         # Testing guide (English)
 ```
 
 ---
 
-## 핵심 컴포넌트
+## Core Components
 
 ### OpenClawEditorBridge.cs
 
-Editor가 시작될 때 자동으로 초기화되는 진입점입니다.
+Entry point that initializes automatically when Editor starts.
 
 ```csharp
 [InitializeOnLoad]
@@ -85,7 +87,7 @@ public static class OpenClawEditorBridge
 {
     static OpenClawEditorBridge()
     {
-        // Unity 6 UPM EPIPE 방지를 위해 지연 초기화
+        // Delayed initialization to prevent Unity 6 UPM EPIPE
         EditorApplication.delayCall += () =>
         {
             _startTime = EditorApplication.timeSinceStartup;
@@ -95,15 +97,15 @@ public static class OpenClawEditorBridge
 }
 ```
 
-**주요 기능:**
-- `[InitializeOnLoad]`로 Editor 시작 시 자동 실행
-- 2초 지연 초기화 (Unity 6 안정성)
-- `SessionState`로 Play Mode 전환 시 상태 저장/복원
-- `EditorApplication.update`에서 Connection Manager 업데이트
+**Key Features:**
+- Auto-runs on Editor start via `[InitializeOnLoad]`
+- 2-second delayed initialization (Unity 6 stability)
+- State save/restore on Play Mode transition via `SessionState`
+- Updates Connection Manager in `EditorApplication.update`
 
 ### OpenClawConnectionManager.cs
 
-HTTP 통신과 명령 실행을 담당하는 싱글톤입니다.
+Singleton handling HTTP communication and command execution.
 
 ```csharp
 public class OpenClawConnectionManager : IDisposable
@@ -125,15 +127,15 @@ public class OpenClawConnectionManager : IDisposable
 }
 ```
 
-**주요 기능:**
-- HTTP 폴링으로 Gateway에서 명령 수신
-- Main Thread 큐로 Unity API 안전하게 호출
-- 자동 재연결 로직
-- JSON 파싱 (중첩 객체, 이스케이프 처리)
+**Key Features:**
+- Receives commands from Gateway via HTTP polling
+- Safely calls Unity API via Main Thread queue
+- Auto-reconnection logic
+- JSON parsing (nested objects, escape handling)
 
 ### OpenClawTools.cs
 
-44개의 AI 도구 구현체입니다.
+Implementation of 44 AI tools.
 
 ```csharp
 public class OpenClawTools
@@ -147,7 +149,7 @@ public class OpenClawTools
             { "console.getLogs", ConsoleGetLogs },
             { "scene.list", SceneList },
             { "gameobject.find", GameObjectFind },
-            // ... 44개 도구
+            // ... 44 tools
         };
     }
 }
@@ -155,26 +157,26 @@ public class OpenClawTools
 
 ---
 
-## 새로운 도구 추가하기
+## Adding New Tools
 
-### 1단계: 도구 메서드 정의
+### Step 1: Define Tool Method
 
-`OpenClawTools.cs`에 새 메서드를 추가합니다:
+Add a new method to `OpenClawTools.cs`:
 
 ```csharp
 private object MyNewTool(Dictionary<string, object> p)
 {
-    // 파라미터 추출
+    // Extract parameters
     var name = GetString(p, "name", "default");
     var count = GetInt(p, "count", 1);
     var enabled = GetBool(p, "enabled", true);
     
     try
     {
-        // 도구 로직 구현
+        // Implement tool logic
         var result = DoSomething(name, count, enabled);
         
-        // 성공 응답
+        // Success response
         return new { 
             success = true, 
             result = result,
@@ -183,7 +185,7 @@ private object MyNewTool(Dictionary<string, object> p)
     }
     catch (Exception e)
     {
-        // 실패 응답
+        // Failure response
         return new { 
             success = false, 
             error = e.Message 
@@ -192,33 +194,33 @@ private object MyNewTool(Dictionary<string, object> p)
 }
 ```
 
-### 2단계: 도구 등록
+### Step 2: Register Tool
 
-생성자의 `_tools` Dictionary에 등록합니다:
+Add to the `_tools` Dictionary in the constructor:
 
 ```csharp
 public OpenClawTools(OpenClawBridge bridge)
 {
     _tools = new Dictionary<string, Func<Dictionary<string, object>, object>>
     {
-        // 기존 도구들...
+        // Existing tools...
         
-        // 새 도구 추가
+        // Add new tool
         { "myCategory.myNewTool", MyNewTool },
     };
 }
 ```
 
-### 3단계: 설명 추가
+### Step 3: Add Description
 
-`GetToolDescription` 메서드에 설명을 추가합니다:
+Add description in `GetToolDescription` method:
 
 ```csharp
 private string GetToolDescription(string name)
 {
     return name switch
     {
-        // 기존 설명들...
+        // Existing descriptions...
         
         "myCategory.myNewTool" => "Description of my new tool (params: name, count, enabled)",
         
@@ -227,12 +229,12 @@ private string GetToolDescription(string name)
 }
 ```
 
-### 예제: 새로운 도구 추가
+### Example: Adding a New Tool
 
-다음은 GameObject의 레이어를 변경하는 도구 예제입니다:
+Here's an example of a tool that changes GameObject layer:
 
 ```csharp
-// 1. 메서드 구현
+// 1. Implement method
 private object GameObjectSetLayer(Dictionary<string, object> p)
 {
     var name = GetString(p, "name", null);
@@ -258,65 +260,65 @@ private object GameObjectSetLayer(Dictionary<string, object> p)
     };
 }
 
-// 2. 등록 (생성자에서)
+// 2. Register (in constructor)
 { "gameobject.setLayer", GameObjectSetLayer },
 
-// 3. 설명 추가
+// 3. Add description
 "gameobject.setLayer" => "Set GameObject layer (params: name, layer)",
 ```
 
 ---
 
-## JSON 파싱
+## JSON Parsing
 
-### 기본 구조
+### Basic Structure
 
-플러그인은 외부 라이브러리 없이 자체 JSON 파싱을 사용합니다:
+The plugin uses custom JSON parsing without external libraries:
 
 ```csharp
 private Dictionary<string, object> ParseJson(string json)
 {
-    // 중첩 객체 지원
+    // Nested object support
     if (value.StartsWith("{") && value.EndsWith("}"))
         result[key] = ParseJson(value);
     
-    // 문자열 이스케이프 해제
+    // String unescape
     if (value.StartsWith("\"") && value.EndsWith("\""))
         result[key] = UnescapeString(value.Substring(1, value.Length - 2));
 }
 ```
 
-### 파라미터 헬퍼 메서드
+### Parameter Helper Methods
 
 ```csharp
-// 문자열 추출
+// Extract string
 var str = GetString(p, "key", "defaultValue");
 
-// 정수 추출
+// Extract integer
 var num = GetInt(p, "key", 0);
 
-// 실수 추출
+// Extract float
 var flt = GetFloat(p, "key", 0.0f);
 
-// 불리언 추출
+// Extract boolean
 var flag = GetBool(p, "key", false);
 ```
 
 ---
 
-## Play Mode 전환 처리
+## Play Mode Transition Handling
 
-### 문제점
+### The Problem
 
-Unity에서 Play Mode 진입/종료 시 도메인 리로드가 발생하면:
-- 모든 static 변수 초기화
-- HttpClient 연결 끊김
-- 진행 중인 작업 손실
+When entering/exiting Play Mode in Unity, domain reload causes:
+- All static variables reset
+- HttpClient connection lost
+- In-progress work lost
 
-### 해결책: SessionState
+### Solution: SessionState
 
 ```csharp
-// Play Mode 전환 전 상태 저장
+// Save state before Play Mode transition
 private static void OnPlayModeStateChanged(PlayModeStateChange state)
 {
     switch (state)
@@ -330,7 +332,7 @@ private static void OnPlayModeStateChanged(PlayModeStateChange state)
             
         case PlayModeStateChange.EnteredPlayMode:
         case PlayModeStateChange.EnteredEditMode:
-            // 초기화 시 자동 재연결
+            // Auto-reconnect on initialization
             if (SessionState.GetBool(PLAY_MODE_TRANSITION_KEY, false))
             {
                 manager.ConnectAsync();
@@ -342,11 +344,11 @@ private static void OnPlayModeStateChanged(PlayModeStateChange state)
 
 ---
 
-## 디버깅
+## Debugging
 
-### Unity Console 로그
+### Unity Console Logs
 
-플러그인은 `[OpenClaw]` 접두사로 로그를 출력합니다:
+The plugin outputs logs with `[OpenClaw]` prefix:
 
 ```
 [OpenClaw] Connecting to http://localhost:18789...
@@ -355,63 +357,63 @@ private static void OnPlayModeStateChanged(PlayModeStateChange state)
 [OpenClaw] Tool result: debug.hierarchy - success
 ```
 
-### Gateway 로그
+### Gateway Logs
 
 ```bash
 openclaw gateway status
-# 또는 Gateway 콘솔에서:
+# Or in Gateway console:
 [Unity] Registered: MyProject (6000.3.7f1) - Session: unity_xxx
 [Unity] Tool result: debug.hierarchy - success
 ```
 
-### 연결 문제 디버깅
+### Connection Troubleshooting
 
-1. **Gateway 상태 확인**
+1. **Check Gateway Status**
    ```bash
    openclaw gateway status
    ```
 
-2. **Unity 창에서 확인**
-   - `Window > OpenClaw Plugin` 열기
-   - Connection Status 확인
-   - "Test Connection" 버튼 클릭
+2. **Check in Unity Window**
+   - Open `Window > OpenClaw Plugin`
+   - Check Connection Status
+   - Click "Test Connection" button
 
-3. **HTTP 직접 테스트**
+3. **Direct HTTP Test**
    ```bash
    curl http://localhost:18789/unity/status
    ```
 
-### 자주 발생하는 실수
+### Common Mistakes
 
-#### ❌ UnityEditor.Resources (존재하지 않음)
+#### ❌ UnityEditor.Resources (doesn't exist)
 
 ```csharp
-// 잘못된 코드 - 컴파일 에러 발생
+// Wrong code - causes compile error
 var windows = UnityEditor.Resources.FindObjectsOfTypeAll<EditorWindow>();
 ```
 
-#### ✅ Resources.FindObjectsOfTypeAll (올바른 방법)
+#### ✅ Resources.FindObjectsOfTypeAll (correct way)
 
 ```csharp
-// 올바른 코드 - UnityEngine.Resources 사용
+// Correct code - use UnityEngine.Resources
 var windows = Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>();
 ```
 
-> **참고:** `Resources.FindObjectsOfTypeAll`은 `UnityEngine.Resources` 클래스의 메서드입니다.
-> Editor 전용 타입(예: `EditorWindow`)을 찾을 때도 `UnityEngine.Resources`를 사용해야 합니다.
-> `UnityEditor.Resources` 네임스페이스는 존재하지 않습니다. (v1.2.1에서 수정됨)
+> **Note:** `Resources.FindObjectsOfTypeAll` is a method of the `UnityEngine.Resources` class.
+> Even when finding Editor-only types (e.g., `EditorWindow`), you must use `UnityEngine.Resources`.
+> The `UnityEditor.Resources` namespace does not exist. (Fixed in v1.2.1)
 
 ---
 
-## 기여 가이드라인
+## Contribution Guidelines
 
-### 코드 스타일
+### Code Style
 
-- C# 표준 명명 규칙 (PascalCase for public, _camelCase for private)
-- 모든 public 메서드에 XML 문서 주석
-- Unity API 호출은 Main Thread에서만
+- C# standard naming conventions (PascalCase for public, _camelCase for private)
+- XML documentation comments on all public methods
+- Unity API calls only on Main Thread
 
-### 커밋 메시지
+### Commit Messages
 
 ```
 feat: Add new input simulation tools
@@ -420,23 +422,23 @@ docs: Update README with new tools
 refactor: Simplify connection manager
 ```
 
-### 테스트
+### Testing
 
-새 기능 추가 시 반드시 테스트:
-1. Editor Mode에서 동작 확인
-2. Play Mode에서 동작 확인
-3. Play Mode 전환 시 연결 유지 확인
+When adding new features, always test:
+1. Works in Editor Mode
+2. Works in Play Mode
+3. Connection maintained during Play Mode transition
 
 ### Pull Request
 
-1. 새 브랜치 생성: `feature/your-feature-name`
-2. 변경사항 커밋
-3. CHANGELOG.md 업데이트
-4. Pull Request 생성
+1. Create new branch: `feature/your-feature-name`
+2. Commit changes
+3. Update CHANGELOG.md
+4. Create Pull Request
 
 ---
 
-## 연락처
+## Contact
 
 - GitHub: https://github.com/TomLeeLive/openclaw-unity-plugin
 - OpenClaw Discord: https://discord.com/invite/clawd

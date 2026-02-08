@@ -1,51 +1,51 @@
 # 🧪 OpenClaw Unity Plugin - Testing Guide
 
-이 문서는 OpenClaw Unity Plugin의 테스트 가이드입니다. 모든 44개 도구의 사용법과 예제를 포함합니다.
+This document is the testing guide for OpenClaw Unity Plugin. It includes usage and examples for all 44 tools.
 
-## 목차
+## Table of Contents
 
-1. [테스트 환경 설정](#테스트-환경-설정)
-2. [기본 연결 테스트](#기본-연결-테스트)
-3. [Console 도구](#console-도구)
-4. [Scene 도구](#scene-도구)
-5. [GameObject 도구](#gameobject-도구)
-6. [Transform 도구](#transform-도구)
-7. [Component 도구](#component-도구)
-8. [Application 도구](#application-도구)
-9. [Debug 도구](#debug-도구)
-10. [Editor 도구](#editor-도구)
-11. [Input 도구](#input-도구)
-12. [자동화 테스트 시나리오](#자동화-테스트-시나리오)
+1. [Test Environment Setup](#test-environment-setup)
+2. [Basic Connection Test](#basic-connection-test)
+3. [Console Tools](#console-tools)
+4. [Scene Tools](#scene-tools)
+5. [GameObject Tools](#gameobject-tools)
+6. [Transform Tools](#transform-tools)
+7. [Component Tools](#component-tools)
+8. [Application Tools](#application-tools)
+9. [Debug Tools](#debug-tools)
+10. [Editor Tools](#editor-tools)
+11. [Input Tools](#input-tools)
+12. [Automation Test Scenarios](#automation-test-scenarios)
 
 ---
 
-## 테스트 환경 설정
+## Test Environment Setup
 
-### 1. OpenClaw Gateway 시작
+### 1. Start OpenClaw Gateway
 
 ```bash
-# Gateway 상태 확인
+# Check Gateway status
 openclaw gateway status
 
-# Gateway 시작 (필요한 경우)
+# Start Gateway (if needed)
 openclaw gateway start
 ```
 
-### 2. Unity 프로젝트 준비
+### 2. Prepare Unity Project
 
-1. OpenClaw Unity Plugin 설치 (README.md 참조)
-2. `Window > OpenClaw Plugin` 열기
-3. Gateway URL 확인: `http://localhost:18789`
-4. "OpenClaw Connected" 상태 확인
+1. Install OpenClaw Unity Plugin (see README.md)
+2. Open `Window > OpenClaw Plugin`
+3. Verify Gateway URL: `http://localhost:18789`
+4. Confirm "OpenClaw Connected" status
 
-### 3. 테스트 세션 확인
+### 3. Verify Test Session
 
 ```bash
-# 연결된 Unity 세션 확인
+# Check connected Unity sessions
 openclaw unity status
 ```
 
-예상 출력:
+Expected output:
 ```
 🎮 Unity Bridge Status
 
@@ -59,20 +59,20 @@ openclaw unity status
 
 ---
 
-## 기본 연결 테스트
+## Basic Connection Test
 
-### unity_sessions - 세션 목록 조회
+### unity_sessions - List Sessions
 
-**설명:** 연결된 모든 Unity 세션 목록을 반환합니다.
+**Description:** Returns a list of all connected Unity sessions.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "연결된 Unity 세션 확인해줘"
+Ask OpenClaw: "Check connected Unity sessions"
 ```
 
-**응답 예시:**
+**Response Example:**
 ```json
 {
   "success": true,
@@ -82,7 +82,7 @@ OpenClaw에게: "연결된 Unity 세션 확인해줘"
       "project": "endless_survival",
       "version": "6000.3.7f1",
       "platform": "Editor",
-      "tools": 42
+      "tools": 44
     }
   ],
   "count": 1
@@ -91,94 +91,94 @@ OpenClaw에게: "연결된 Unity 세션 확인해줘"
 
 ---
 
-## Console 도구
+## Console Tools
 
-### console.getLogs - 로그 조회
+### console.getLogs - Get Logs
 
-**설명:** Unity Console의 로그를 가져옵니다.
+**Description:** Retrieves logs from Unity Console.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `count` | int | 100 | 가져올 로그 수 |
-| `type` | string | null | 필터: "log", "warning", "error" |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `count` | int | 100 | Number of logs to retrieve |
+| `type` | string | null | Filter: "log", "warning", "error" |
 
-**예제 1: 모든 로그 조회**
+**Example 1: Get all logs**
 ```
-OpenClaw에게: "Unity 콘솔 로그 보여줘"
+Ask OpenClaw: "Show Unity console logs"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "console.getLogs", "parameters": {} }
 
-// 응답
+// Response
 [
   { "type": "Log", "message": "[OpenClaw] Connected!", "timestamp": "..." },
   { "type": "Warning", "message": "Shader not found", "timestamp": "..." }
 ]
 ```
 
-**예제 2: 에러만 조회**
+**Example 2: Get errors only**
 ```
-OpenClaw에게: "Unity 에러 로그만 보여줘"
+Ask OpenClaw: "Show only Unity error logs"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "console.getLogs", "parameters": { "type": "error", "count": 10 } }
 ```
 
-### console.clear - 로그 초기화
+### console.clear - Clear Logs
 
-**설명:** 캡처된 로그를 초기화합니다.
+**Description:** Clears captured logs.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity 콘솔 로그 지워줘"
+Ask OpenClaw: "Clear Unity console logs"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "console.clear", "parameters": {} }
 
-// 응답
+// Response
 { "success": true }
 ```
 
 ---
 
-## Scene 도구
+## Scene Tools
 
-### scene.list - 씬 목록 조회
+### scene.list - List Scenes
 
-**설명:** Build Settings에 등록된 모든 씬 목록을 반환합니다.
+**Description:** Returns a list of all scenes registered in Build Settings.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "프로젝트에 있는 씬 목록 보여줘"
+Ask OpenClaw: "Show scene list in project"
 ```
 ```json
-// 응답
+// Response
 [
   { "index": 0, "path": "Assets/Scenes/MainMenu.unity", "name": "MainMenu" },
   { "index": 1, "path": "Assets/Scenes/GameScene.unity", "name": "GameScene" }
 ]
 ```
 
-### scene.getActive - 현재 씬 정보
+### scene.getActive - Get Active Scene Info
 
-**설명:** 현재 활성 씬의 정보를 반환합니다.
+**Description:** Returns information about the currently active scene.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 열린 씬 정보 알려줘"
+Ask OpenClaw: "Tell me about the current scene"
 ```
 ```json
-// 응답
+// Response
 {
   "name": "MainMenu",
   "path": "Assets/Scenes/MainMenu.unity",
@@ -188,116 +188,116 @@ OpenClaw에게: "현재 열린 씬 정보 알려줘"
 }
 ```
 
-### scene.getData - 씬 데이터 조회
+### scene.getData - Get Scene Data
 
-**설명:** 씬의 계층 구조 데이터를 반환합니다.
+**Description:** Returns hierarchy data of the scene.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | null | 씬 이름 (null이면 현재 씬) |
-| `depth` | int | 2 | 계층 깊이 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | null | Scene name (null for current) |
+| `depth` | int | 2 | Hierarchy depth |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 씬 구조 3단계까지 보여줘"
+Ask OpenClaw: "Show current scene structure up to 3 levels"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "scene.getData", "parameters": { "depth": 3 } }
 ```
 
-### scene.load - 씬 로드
+### scene.load - Load Scene
 
-**설명:** 씬을 로드합니다.
+**Description:** Loads a scene.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 씬 이름 |
-| `mode` | string | "Single" | "Single" 또는 "Additive" |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Scene name |
+| `mode` | string | "Single" | "Single" or "Additive" |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "GameScene 씬으로 전환해줘"
+Ask OpenClaw: "Switch to GameScene"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "scene.load", "parameters": { "name": "GameScene" } }
 
-// 응답
+// Response
 { "success": true, "scene": "GameScene" }
 ```
 
 ---
 
-## GameObject 도구
+## GameObject Tools
 
-### gameobject.find - 오브젝트 검색
+### gameobject.find - Find Objects
 
-**설명:** 이름, 태그, 또는 컴포넌트 타입으로 GameObject를 검색합니다.
+**Description:** Searches for GameObjects by name, tag, or component type.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | null | 이름으로 검색 |
-| `tag` | string | null | 태그로 검색 |
-| `type` | string | null | 컴포넌트 타입으로 검색 |
-| `depth` | int | 1 | 결과 깊이 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | null | Search by name |
+| `tag` | string | null | Search by tag |
+| `type` | string | null | Search by component type |
+| `depth` | int | 1 | Result depth |
 
-**예제 1: 이름으로 검색**
+**Example 1: Search by name**
 ```
-OpenClaw에게: "Player라는 이름의 오브젝트 찾아줘"
+Ask OpenClaw: "Find object named Player"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.find", "parameters": { "name": "Player" } }
 ```
 
-**예제 2: 태그로 검색**
+**Example 2: Search by tag**
 ```
-OpenClaw에게: "Enemy 태그가 붙은 오브젝트들 찾아줘"
+Ask OpenClaw: "Find objects with Enemy tag"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.find", "parameters": { "tag": "Enemy" } }
 ```
 
-**예제 3: 컴포넌트로 검색**
+**Example 3: Search by component**
 ```
-OpenClaw에게: "Camera 컴포넌트가 있는 오브젝트들 찾아줘"
+Ask OpenClaw: "Find objects with Camera component"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.find", "parameters": { "type": "Camera" } }
 ```
 
-### gameobject.create - 오브젝트 생성
+### gameobject.create - Create Object
 
-**설명:** 새 GameObject 또는 Primitive를 생성합니다.
+**Description:** Creates a new GameObject or Primitive.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | "New GameObject" | 오브젝트 이름 |
-| `primitive` | string | null | "Cube", "Sphere", "Cylinder" 등 |
-| `position` | object | null | {x, y, z} 위치 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | "New GameObject" | Object name |
+| `primitive` | string | null | "Cube", "Sphere", "Cylinder", etc. |
+| `position` | object | null | {x, y, z} position |
 
-**예제 1: 빈 오브젝트 생성**
+**Example 1: Create empty object**
 ```
-OpenClaw에게: "Enemy라는 빈 오브젝트 만들어줘"
+Ask OpenClaw: "Create an empty object named Enemy"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.create", "parameters": { "name": "Enemy" } }
 ```
 
-**예제 2: Primitive 생성**
+**Example 2: Create Primitive**
 ```
-OpenClaw에게: "위치 (0, 1, 0)에 구체 만들어줘"
+Ask OpenClaw: "Create a sphere at position (0, 1, 0)"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "gameobject.create",
   "parameters": {
@@ -308,116 +308,116 @@ OpenClaw에게: "위치 (0, 1, 0)에 구체 만들어줘"
 }
 ```
 
-### gameobject.destroy - 오브젝트 삭제
+### gameobject.destroy - Destroy Object
 
-**설명:** GameObject를 삭제합니다.
+**Description:** Destroys a GameObject.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 오브젝트 이름 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Object name |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "TempObject 삭제해줘"
+Ask OpenClaw: "Delete TempObject"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.destroy", "parameters": { "name": "TempObject" } }
 
-// 응답
+// Response
 { "success": true, "destroyed": "TempObject" }
 ```
 
-### gameobject.setActive - 활성화/비활성화
+### gameobject.setActive - Activate/Deactivate
 
-**설명:** GameObject를 활성화하거나 비활성화합니다.
+**Description:** Activates or deactivates a GameObject.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 오브젝트 이름 |
-| `active` | bool | true | 활성화 여부 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Object name |
+| `active` | bool | true | Active state |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Player 오브젝트 비활성화해줘"
+Ask OpenClaw: "Deactivate Player object"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "gameobject.setActive", "parameters": { "name": "Player", "active": false } }
 ```
 
 ---
 
-## Transform 도구
+## Transform Tools
 
-### transform.setPosition - 위치 설정
+### transform.setPosition - Set Position
 
-**설명:** GameObject의 월드 위치를 설정합니다.
+**Description:** Sets world position of a GameObject.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 오브젝트 이름 |
-| `x` | float | (현재값) | X 좌표 |
-| `y` | float | (현재값) | Y 좌표 |
-| `z` | float | (현재값) | Z 좌표 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Object name |
+| `x` | float | (current) | X coordinate |
+| `y` | float | (current) | Y coordinate |
+| `z` | float | (current) | Z coordinate |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Player를 원점으로 이동시켜줘"
+Ask OpenClaw: "Move Player to origin"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "transform.setPosition",
   "parameters": { "name": "Player", "x": 0, "y": 0, "z": 0 }
 }
 ```
 
-### transform.setRotation - 회전 설정
+### transform.setRotation - Set Rotation
 
-**설명:** GameObject의 회전을 설정합니다 (Euler angles).
+**Description:** Sets rotation of a GameObject (Euler angles).
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 오브젝트 이름 |
-| `x` | float | (현재값) | X 회전 (도) |
-| `y` | float | (현재값) | Y 회전 (도) |
-| `z` | float | (현재값) | Z 회전 (도) |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Object name |
+| `x` | float | (current) | X rotation (degrees) |
+| `y` | float | (current) | Y rotation (degrees) |
+| `z` | float | (current) | Z rotation (degrees) |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Camera를 Y축으로 90도 회전시켜줘"
+Ask OpenClaw: "Rotate Camera 90 degrees on Y axis"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "transform.setRotation",
   "parameters": { "name": "Camera", "y": 90 }
 }
 ```
 
-### transform.setScale - 스케일 설정
+### transform.setScale - Set Scale
 
-**설명:** GameObject의 로컬 스케일을 설정합니다.
+**Description:** Sets local scale of a GameObject.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | (필수) | 오브젝트 이름 |
-| `x` | float | (현재값) | X 스케일 |
-| `y` | float | (현재값) | Y 스케일 |
-| `z` | float | (현재값) | Z 스케일 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Object name |
+| `x` | float | (current) | X scale |
+| `y` | float | (current) | Y scale |
+| `z` | float | (current) | Z scale |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Cube를 2배 크기로 만들어줘"
+Ask OpenClaw: "Make Cube 2x size"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "transform.setScale",
   "parameters": { "name": "Cube", "x": 2, "y": 2, "z": 2 }
@@ -426,52 +426,52 @@ OpenClaw에게: "Cube를 2배 크기로 만들어줘"
 
 ---
 
-## Component 도구
+## Component Tools
 
-### component.add - 컴포넌트 추가
+### component.add - Add Component
 
-**설명:** GameObject에 컴포넌트를 추가합니다.
+**Description:** Adds a component to a GameObject.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `gameObject` | string | (필수) | 오브젝트 이름 |
-| `type` | string | (필수) | 컴포넌트 타입 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `gameObject` | string | (required) | Object name |
+| `type` | string | (required) | Component type |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Player에 Rigidbody 컴포넌트 추가해줘"
+Ask OpenClaw: "Add Rigidbody component to Player"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "component.add",
   "parameters": { "gameObject": "Player", "type": "Rigidbody" }
 }
 ```
 
-### component.get - 컴포넌트 조회
+### component.get - Get Component
 
-**설명:** 컴포넌트의 데이터를 가져옵니다.
+**Description:** Gets component data.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `gameObject` | string | (필수) | 오브젝트 이름 |
-| `type` | string | (필수) | 컴포넌트 타입 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `gameObject` | string | (required) | Object name |
+| `type` | string | (required) | Component type |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Player의 Transform 정보 보여줘"
+Ask OpenClaw: "Show Player's Transform info"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "component.get",
   "parameters": { "gameObject": "Player", "type": "Transform" }
 }
 
-// 응답
+// Response
 {
   "type": "Transform",
   "fields": {
@@ -482,24 +482,24 @@ OpenClaw에게: "Player의 Transform 정보 보여줘"
 }
 ```
 
-### component.set - 컴포넌트 값 설정
+### component.set - Set Component Value
 
-**설명:** 컴포넌트의 필드/프로퍼티 값을 설정합니다.
+**Description:** Sets field/property value of a component.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `gameObject` | string | (필수) | 오브젝트 이름 |
-| `type` | string | (필수) | 컴포넌트 타입 |
-| `field` | string | (필수) | 필드/프로퍼티 이름 |
-| `value` | any | (필수) | 설정할 값 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `gameObject` | string | (required) | Object name |
+| `type` | string | (required) | Component type |
+| `field` | string | (required) | Field/property name |
+| `value` | any | (required) | Value to set |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Player의 Rigidbody mass를 5로 설정해줘"
+Ask OpenClaw: "Set Player's Rigidbody mass to 5"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "component.set",
   "parameters": {
@@ -513,20 +513,20 @@ OpenClaw에게: "Player의 Rigidbody mass를 5로 설정해줘"
 
 ---
 
-## Application 도구
+## Application Tools
 
-### app.getState - 앱 상태 조회
+### app.getState - Get App State
 
-**설명:** 현재 애플리케이션 상태를 반환합니다.
+**Description:** Returns current application state.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 Unity 상태 알려줘"
+Ask OpenClaw: "Tell me current Unity state"
 ```
 ```json
-// 응답
+// Response
 {
   "isPlaying": true,
   "isPaused": false,
@@ -538,104 +538,104 @@ OpenClaw에게: "현재 Unity 상태 알려줘"
 }
 ```
 
-### app.play - Play 모드 시작
+### app.play - Start Play Mode
 
-**설명:** Play 모드를 시작합니다.
+**Description:** Starts Play mode.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity Play 모드 시작해줘"
+Ask OpenClaw: "Start Unity Play mode"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "app.play", "parameters": {} }
 
-// 응답
+// Response
 { "success": true }
 ```
 
-### app.stop - Play 모드 종료
+### app.stop - Stop Play Mode
 
-**설명:** Play 모드를 종료합니다.
+**Description:** Stops Play mode.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity Play 모드 종료해줘"
+Ask OpenClaw: "Stop Unity Play mode"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "app.stop", "parameters": {} }
 ```
 
-### app.pause - 일시정지 토글
+### app.pause - Toggle Pause
 
-**설명:** Play 모드 일시정지를 토글합니다.
+**Description:** Toggles Play mode pause.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "게임 일시정지해줘"
+Ask OpenClaw: "Pause the game"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "app.pause", "parameters": {} }
 
-// 응답
+// Response
 { "success": true, "isPaused": true }
 ```
 
 ---
 
-## Debug 도구
+## Debug Tools
 
-### debug.log - 로그 출력
+### debug.log - Output Log
 
-**설명:** Unity Console에 로그를 출력합니다.
+**Description:** Outputs a log to Unity Console.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `message` | string | "" | 로그 메시지 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `message` | string | "" | Log message |
 | `level` | string | "log" | "log", "warning", "error" |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity 콘솔에 'Hello from AI!' 출력해줘"
+Ask OpenClaw: "Output 'Hello from AI!' to Unity console"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "debug.log",
   "parameters": { "message": "Hello from AI!", "level": "log" }
 }
 ```
 
-### debug.screenshot - 스크린샷 캡처
+### debug.screenshot - Capture Screenshot
 
-**설명:** 게임 화면 스크린샷을 캡처합니다.
+**Description:** Captures a screenshot of the game screen.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `filename` | string | (자동) | 파일 이름 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `filename` | string | (auto) | File name |
 | `method` | string | "auto" | "auto", "camera", "screencapture" |
-| `width` | int | (자동) | 가로 해상도 |
-| `height` | int | (자동) | 세로 해상도 |
+| `width` | int | (auto) | Width resolution |
+| `height` | int | (auto) | Height resolution |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 게임 화면 캡처해줘"
+Ask OpenClaw: "Capture current game screen"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "debug.screenshot", "parameters": {} }
 
-// 응답
+// Response
 {
   "success": true,
   "path": "/Users/.../screenshot_20260207_123456.png",
@@ -645,24 +645,24 @@ OpenClaw에게: "현재 게임 화면 캡처해줘"
 }
 ```
 
-### debug.hierarchy - 계층 구조 출력
+### debug.hierarchy - Output Hierarchy
 
-**설명:** 씬의 계층 구조를 텍스트로 출력합니다.
+**Description:** Outputs scene hierarchy as text.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `depth` | int | 3 | 출력 깊이 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `depth` | int | 3 | Output depth |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 씬 구조 보여줘"
+Ask OpenClaw: "Show current scene structure"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "debug.hierarchy", "parameters": { "depth": 3 } }
 
-// 응답
+// Response
 "▶ Main Camera [Camera, AudioListener]
 ▶ Directional Light [Light]
 ▶ Player [PlayerController]
@@ -675,57 +675,57 @@ OpenClaw에게: "현재 씬 구조 보여줘"
 
 ---
 
-## Editor 도구
+## Editor Tools
 
-### editor.refresh - 에셋 새로고침
+### editor.refresh - Refresh Assets
 
-**설명:** AssetDatabase를 새로고침합니다 (스크립트 변경 시 재컴파일 트리거).
+**Description:** Refreshes AssetDatabase (triggers recompile on script changes).
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `forceUpdate` | bool | false | 강제 업데이트 여부 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `forceUpdate` | bool | false | Force update |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity 에셋 새로고침해줘"
+Ask OpenClaw: "Refresh Unity assets"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "editor.refresh", "parameters": { "forceUpdate": true } }
 
-// 응답
+// Response
 { "success": true, "action": "AssetDatabase.Refresh", "forceUpdate": true }
 ```
 
-### editor.recompile - 스크립트 재컴파일
+### editor.recompile - Recompile Scripts
 
-**설명:** 스크립트 재컴파일을 요청합니다.
+**Description:** Requests script recompilation.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Unity 스크립트 재컴파일해줘"
+Ask OpenClaw: "Recompile Unity scripts"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "editor.recompile", "parameters": {} }
 
-// 응답
+// Response
 { "success": true, "action": "RequestScriptCompilation" }
 ```
 
-### editor.focusWindow - 창 포커스
+### editor.focusWindow - Focus Window
 
-**설명:** 특정 Editor 창에 포커스를 맞춥니다.
+**Description:** Focuses a specific Editor window.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `window` | string | "game" | 창 이름 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `window` | string | "game" | Window name |
 
-**지원되는 창:**
+**Supported windows:**
 - `game` / `gameview` - Game View
 - `scene` / `sceneview` - Scene View
 - `console` - Console
@@ -736,33 +736,33 @@ OpenClaw에게: "Unity 스크립트 재컴파일해줘"
 - `animation` - Animation
 - `animator` - Animator
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Game 창으로 포커스 옮겨줘"
+Ask OpenClaw: "Focus on Game window"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "editor.focusWindow", "parameters": { "window": "game" } }
 
-// 응답
+// Response
 { "success": true, "window": "game", "focused": true }
 ```
 
-### editor.listWindows - 열린 창 목록
+### editor.listWindows - List Open Windows
 
-**설명:** 현재 열려있는 모든 Editor 창 목록을 반환합니다.
+**Description:** Returns a list of all currently open Editor windows.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 열린 Unity 창 목록 보여줘"
+Ask OpenClaw: "Show list of open Unity windows"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "editor.listWindows", "parameters": {} }
 
-// 응답
+// Response
 {
   "success": true,
   "windows": [
@@ -776,149 +776,149 @@ OpenClaw에게: "현재 열린 Unity 창 목록 보여줘"
 
 ---
 
-## Input 도구
+## Input Tools
 
-### input.keyPress - 키 입력
+### input.keyPress - Key Input
 
-**설명:** 키를 눌렀다 뗍니다 (tap).
+**Description:** Presses and releases a key (tap).
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `key` | string | (필수) | KeyCode 이름 |
-| `duration` | float | 0.1 | 누르는 시간 (초) |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `key` | string | (required) | KeyCode name |
+| `duration` | float | 0.1 | Press duration (seconds) |
 
-**지원되는 키:**
-- 알파벳: `A`-`Z`
-- 숫자: `Alpha0`-`Alpha9` 또는 `0`-`9`
-- 방향키: `LeftArrow`, `RightArrow`, `UpArrow`, `DownArrow` 또는 `left`, `right`, `up`, `down`
-- 특수키: `Space`, `Return`, `Escape`, `Tab`, `Backspace`
-- 수정자: `LeftShift`, `RightShift`, `LeftControl`, `LeftAlt`
-- 마우스: `Mouse0` (좌클릭), `Mouse1` (우클릭), `Mouse2` (휠클릭)
+**Supported keys:**
+- Alphabet: `A`-`Z`
+- Numbers: `Alpha0`-`Alpha9` or `0`-`9`
+- Arrows: `LeftArrow`, `RightArrow`, `UpArrow`, `DownArrow` or `left`, `right`, `up`, `down`
+- Special: `Space`, `Return`, `Escape`, `Tab`, `Backspace`
+- Modifiers: `LeftShift`, `RightShift`, `LeftControl`, `LeftAlt`
+- Mouse: `Mouse0` (left), `Mouse1` (right), `Mouse2` (wheel)
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "W키 눌러줘"
+Ask OpenClaw: "Press W key"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.keyPress", "parameters": { "key": "W" } }
 
-// 응답
+// Response
 { "success": true, "key": "W", "keyCode": "W", "duration": 0.1 }
 ```
 
-### input.keyDown / input.keyUp - 키 홀드
+### input.keyDown / input.keyUp - Key Hold
 
-**설명:** 키를 누르거나 뗍니다.
+**Description:** Presses or releases a key.
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "Shift 키 누른 상태로 유지해줘"
+Ask OpenClaw: "Hold Shift key"
 ```
 ```json
-// 누르기
+// Press
 { "tool": "input.keyDown", "parameters": { "key": "LeftShift" } }
 
-// 나중에 떼기
+// Release later
 { "tool": "input.keyUp", "parameters": { "key": "LeftShift" } }
 ```
 
-### input.type - 텍스트 입력
+### input.type - Type Text
 
-**설명:** 현재 포커스된 입력 필드에 텍스트를 입력합니다.
+**Description:** Types text into currently focused input field.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `text` | string | (필수) | 입력할 텍스트 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `text` | string | (required) | Text to type |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "입력 필드에 'TestPlayer' 입력해줘"
+Ask OpenClaw: "Type 'TestPlayer' in input field"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.type", "parameters": { "text": "TestPlayer" } }
 
-// 응답
+// Response
 { "success": true, "text": "TestPlayer", "target": "UsernameInput", "method": "TMP_InputField" }
 ```
 
-### input.mouseMove - 마우스 이동
+### input.mouseMove - Move Mouse
 
-**설명:** 마우스 커서를 이동합니다.
+**Description:** Moves mouse cursor.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `x` | float | (필수) | X 좌표 |
-| `y` | float | (필수) | Y 좌표 |
-| `normalized` | bool | false | 0-1 정규화 좌표 사용 여부 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `x` | float | (required) | X coordinate |
+| `y` | float | (required) | Y coordinate |
+| `normalized` | bool | false | Use 0-1 normalized coordinates |
 
-**예제 1: 픽셀 좌표**
+**Example 1: Pixel coordinates**
 ```
-OpenClaw에게: "마우스를 (500, 300) 위치로 이동해줘"
+Ask OpenClaw: "Move mouse to (500, 300)"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.mouseMove", "parameters": { "x": 500, "y": 300 } }
 ```
 
-**예제 2: 정규화 좌표 (화면 중앙)**
+**Example 2: Normalized coordinates (screen center)**
 ```
-OpenClaw에게: "마우스를 화면 중앙으로 이동해줘"
+Ask OpenClaw: "Move mouse to screen center"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.mouseMove", "parameters": { "x": 0.5, "y": 0.5, "normalized": true } }
 ```
 
-### input.mouseClick - 마우스 클릭
+### input.mouseClick - Mouse Click
 
-**설명:** 특정 위치에서 마우스를 클릭합니다.
+**Description:** Clicks mouse at specific position.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `x` | float | (현재위치) | X 좌표 |
-| `y` | float | (현재위치) | Y 좌표 |
-| `button` | int | 0 | 0=좌, 1=우, 2=휠 |
-| `clicks` | int | 1 | 클릭 횟수 |
-| `normalized` | bool | false | 정규화 좌표 사용 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `x` | float | (current) | X coordinate |
+| `y` | float | (current) | Y coordinate |
+| `button` | int | 0 | 0=left, 1=right, 2=wheel |
+| `clicks` | int | 1 | Click count |
+| `normalized` | bool | false | Use normalized coordinates |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "(400, 500) 위치에서 더블클릭해줘"
+Ask OpenClaw: "Double-click at (400, 500)"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "input.mouseClick",
   "parameters": { "x": 400, "y": 500, "clicks": 2 }
 }
 ```
 
-### input.mouseDrag - 마우스 드래그
+### input.mouseDrag - Mouse Drag
 
-**설명:** 시작점에서 끝점까지 드래그합니다.
+**Description:** Drags from start point to end point.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `startX` | float | (필수) | 시작 X |
-| `startY` | float | (필수) | 시작 Y |
-| `endX` | float | (필수) | 끝 X |
-| `endY` | float | (필수) | 끝 Y |
-| `button` | int | 0 | 마우스 버튼 |
-| `steps` | int | 10 | 중간 단계 수 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `startX` | float | (required) | Start X |
+| `startY` | float | (required) | Start Y |
+| `endX` | float | (required) | End X |
+| `endY` | float | (required) | End Y |
+| `button` | int | 0 | Mouse button |
+| `steps` | int | 10 | Intermediate steps |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "(100, 100)에서 (500, 500)까지 드래그해줘"
+Ask OpenClaw: "Drag from (100, 100) to (500, 500)"
 ```
 ```json
-// 도구 호출
+// Tool call
 {
   "tool": "input.mouseDrag",
   "parameters": {
@@ -929,37 +929,37 @@ OpenClaw에게: "(100, 100)에서 (500, 500)까지 드래그해줘"
 }
 ```
 
-### input.mouseScroll - 마우스 스크롤
+### input.mouseScroll - Mouse Scroll
 
-**설명:** 마우스 휠을 스크롤합니다.
+**Description:** Scrolls mouse wheel.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `deltaX` | float | 0 | 수평 스크롤 |
-| `deltaY` | float | 0 | 수직 스크롤 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `deltaX` | float | 0 | Horizontal scroll |
+| `deltaY` | float | 0 | Vertical scroll |
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "아래로 스크롤해줘"
+Ask OpenClaw: "Scroll down"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.mouseScroll", "parameters": { "deltaY": -120 } }
 ```
 
-### input.getMousePosition - 마우스 위치 조회
+### input.getMousePosition - Get Mouse Position
 
-**설명:** 현재 마우스 커서 위치를 반환합니다.
+**Description:** Returns current mouse cursor position.
 
-**파라미터:** 없음
+**Parameters:** None
 
-**예제:**
+**Example:**
 ```
-OpenClaw에게: "현재 마우스 위치 알려줘"
+Ask OpenClaw: "Tell me current mouse position"
 ```
 ```json
-// 응답
+// Response
 {
   "x": 512,
   "y": 384,
@@ -970,101 +970,101 @@ OpenClaw에게: "현재 마우스 위치 알려줘"
 }
 ```
 
-### input.clickUI - UI 요소 클릭
+### input.clickUI - Click UI Element
 
-**설명:** 이름으로 UI 요소를 찾아 클릭합니다.
+**Description:** Finds and clicks a UI element by name.
 
-**파라미터:**
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `name` | string | null | UI 요소 이름 |
-| `path` | string | null | 전체 경로 |
-| `button` | int | 0 | 마우스 버튼 |
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | null | UI element name |
+| `path` | string | null | Full path |
+| `button` | int | 0 | Mouse button |
 
-**예제 1: 이름으로 클릭**
+**Example 1: Click by name**
 ```
-OpenClaw에게: "PlayButton 클릭해줘"
+Ask OpenClaw: "Click PlayButton"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.clickUI", "parameters": { "name": "PlayButton" } }
 
-// 응답
+// Response
 { "success": true, "target": "PlayButton", "method": "Button.onClick" }
 ```
 
-**예제 2: 경로로 클릭**
+**Example 2: Click by path**
 ```
-OpenClaw에게: "Canvas/Menu/StartButton 클릭해줘"
+Ask OpenClaw: "Click Canvas/Menu/StartButton"
 ```
 ```json
-// 도구 호출
+// Tool call
 { "tool": "input.clickUI", "parameters": { "path": "Canvas/Menu/StartButton" } }
 ```
 
 ---
 
-## 자동화 테스트 시나리오
+## Automation Test Scenarios
 
-### 시나리오 1: 로그인 플로우 테스트
+### Scenario 1: Login Flow Test
 
 ```
-OpenClaw에게: "로그인 화면 테스트해줘. UsernameInput에 'TestPlayer' 입력하고 PlayButton 클릭해"
+Ask OpenClaw: "Test login screen. Type 'TestPlayer' in UsernameInput and click PlayButton"
 ```
 
-**실행 순서:**
+**Execution sequence:**
 ```json
-// 1. 입력 필드 클릭하여 포커스
+// 1. Click input field to focus
 { "tool": "input.clickUI", "parameters": { "name": "UsernameInput" } }
 
-// 2. 텍스트 입력
+// 2. Type text
 { "tool": "input.type", "parameters": { "text": "TestPlayer" } }
 
-// 3. Play 버튼 클릭
+// 3. Click Play button
 { "tool": "input.clickUI", "parameters": { "name": "PlayButton" } }
 
-// 4. 결과 스크린샷
+// 4. Screenshot result
 { "tool": "debug.screenshot", "parameters": {} }
 ```
 
-### 시나리오 2: 게임플레이 테스트
+### Scenario 2: Gameplay Test
 
 ```
-OpenClaw에게: "캐릭터 이동 테스트해줘. W키로 전진, Space로 점프"
+Ask OpenClaw: "Test character movement. Move forward with W key, jump with Space"
 ```
 
-**실행 순서:**
+**Execution sequence:**
 ```json
-// 1. Play 모드 시작
+// 1. Start Play mode
 { "tool": "app.play", "parameters": {} }
 
-// 2. W키로 전진 (1초간)
+// 2. Move forward with W (1 second)
 { "tool": "input.keyDown", "parameters": { "key": "W" } }
-// ... 1초 대기 ...
+// ... wait 1 second ...
 { "tool": "input.keyUp", "parameters": { "key": "W" } }
 
-// 3. Space로 점프
+// 3. Jump with Space
 { "tool": "input.keyPress", "parameters": { "key": "Space" } }
 
-// 4. 결과 스크린샷
+// 4. Screenshot result
 { "tool": "debug.screenshot", "parameters": {} }
 ```
 
-### 시나리오 3: UI 네비게이션 테스트
+### Scenario 3: UI Navigation Test
 
 ```
-OpenClaw에게: "메뉴 네비게이션 테스트해줘. 설정 > 오디오 > 볼륨 조절"
+Ask OpenClaw: "Test menu navigation. Settings > Audio > Volume control"
 ```
 
-**실행 순서:**
+**Execution sequence:**
 ```json
-// 1. 설정 버튼 클릭
+// 1. Click Settings button
 { "tool": "input.clickUI", "parameters": { "name": "SettingsButton" } }
 
-// 2. 오디오 탭 클릭
+// 2. Click Audio tab
 { "tool": "input.clickUI", "parameters": { "name": "AudioTab" } }
 
-// 3. 볼륨 슬라이더 드래그
+// 3. Drag volume slider
 {
   "tool": "input.mouseDrag",
   "parameters": {
@@ -1073,51 +1073,51 @@ OpenClaw에게: "메뉴 네비게이션 테스트해줘. 설정 > 오디오 > �
   }
 }
 
-// 4. 결과 확인
+// 4. Verify result
 { "tool": "debug.screenshot", "parameters": {} }
 ```
 
 ---
 
-## 문제 해결
+## Troubleshooting
 
-### 도구가 "Unknown tool" 에러 반환
+### Tool returns "Unknown tool" error
 
-- Unity가 재컴파일되었는지 확인
-- `editor.recompile` 도구 실행
-- Unity 창 클릭하여 포커스
+- Check if Unity has recompiled
+- Run `editor.recompile` tool
+- Click Unity window to focus
 
-### 파라미터가 전달되지 않음
+### Parameters not being passed
 
-- JSON 형식 확인
-- 파라미터 이름 대소문자 확인
-- 플러그인 버전 확인 (v1.2.0+ 필요)
+- Check JSON format
+- Check parameter name case sensitivity
+- Check plugin version (v1.2.0+ required)
 
-### 스크린샷이 검은색/빈 화면
+### Screenshot is black/empty
 
-- Play 모드 확인
-- Camera.main 존재 확인
-- Game View 창이 열려있는지 확인
+- Check Play mode
+- Check Camera.main exists
+- Check Game View window is open
 
-### UI 클릭이 동작하지 않음
+### UI click not working
 
-- EventSystem 존재 확인
-- Canvas가 활성화되어 있는지 확인
-- Raycast Target이 켜져있는지 확인
+- Check EventSystem exists
+- Check Canvas is active
+- Check Raycast Target is enabled
 
 ---
 
-## 테스트 체크리스트
+## Test Checklist
 
-- [ ] Gateway 연결 상태
-- [ ] Unity 세션 등록
-- [ ] Console 도구 (getLogs, clear)
-- [ ] Scene 도구 (list, getActive, getData, load)
-- [ ] GameObject 도구 (find, create, destroy, setActive)
-- [ ] Transform 도구 (setPosition, setRotation, setScale)
-- [ ] Component 도구 (add, remove, get, set)
-- [ ] Application 도구 (getState, play, stop, pause)
-- [ ] Debug 도구 (log, screenshot, hierarchy)
-- [ ] Editor 도구 (refresh, recompile, focusWindow, listWindows)
-- [ ] Input 도구 (keyPress, mouseClick, clickUI, type)
-- [ ] Play Mode 전환 시 연결 유지
+- [ ] Gateway connection status
+- [ ] Unity session registration
+- [ ] Console tools (getLogs, clear)
+- [ ] Scene tools (list, getActive, getData, load)
+- [ ] GameObject tools (find, create, destroy, setActive)
+- [ ] Transform tools (setPosition, setRotation, setScale)
+- [ ] Component tools (add, remove, get, set)
+- [ ] Application tools (getState, play, stop, pause)
+- [ ] Debug tools (log, screenshot, hierarchy)
+- [ ] Editor tools (refresh, recompile, focusWindow, listWindows)
+- [ ] Input tools (keyPress, mouseClick, clickUI, type)
+- [ ] Connection maintained during Play Mode transition

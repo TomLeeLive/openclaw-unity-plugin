@@ -44,49 +44,59 @@ Connect Unity to [OpenClaw](https://github.com/openclaw/openclaw) AI assistant v
 
 ## Quick Start
 
-### 1. Enable Unity Plugin in OpenClaw
+### 1. Install OpenClaw Gateway Extension (Required)
+
+Copy the gateway extension files to OpenClaw:
 
 ```bash
-openclaw plugins list | grep unity
-# Should show: Unity MCP │ unity │ loaded
+# Copy extension files
+cp -r OpenClawPlugin~/* ~/.openclaw/extensions/unity/
 
+# Restart gateway to load the extension
+openclaw gateway restart
+
+# Verify
 openclaw unity status
-# Shows connection status
 ```
 
-### 2. Configure in Unity
+> **Note:** `OpenClawPlugin~` contains the gateway extension that enables `unity_execute` and `unity_sessions` tools. This is required for OpenClaw to communicate with Unity.
+
+### 2. Install Unity Package
+
+See [Installation](#installation) above for Git URL or local package setup.
+
+### 3. Configure in Unity
 
 1. Open `Window > OpenClaw Plugin`
 2. Set Gateway URL: `http://localhost:18789` (default)
 3. Connection is automatic when Unity starts
 4. Status shows green when connected
 
-### 3. Chat with OpenClaw
+### 4. Chat with OpenClaw
 
 Ask OpenClaw to inspect your scene, create objects, or debug issues - all without entering Play mode!
 
-### 4. Install OpenClaw Skill (Optional)
+### 5. Install OpenClaw Skill (Optional)
 
-Install the companion skill for enhanced Unity workflows:
+The companion skill provides workflow patterns and tool references for the AI:
 
 ```bash
-# Copy skill to OpenClaw workspace
-cp -r skill ~/.openclaw/workspace/skills/unity-plugin
-
-# Or clone separately
+# Clone skill to OpenClaw workspace
 git clone https://github.com/TomLeeLive/openclaw-unity-skill.git ~/.openclaw/workspace/skills/unity-plugin
 ```
 
 The skill provides:
 - Quick reference for all 44 tools
-- Common workflow patterns
+- Common workflow patterns (scene inspection, UI testing, etc.)
 - Detailed parameter documentation
 - Troubleshooting guides
 
+> **Note:** The skill is separate from the gateway extension. The extension enables the tools; the skill teaches the AI how to use them effectively.
+
 ## 📚 Documentation
 
-- **[Development Guide](docs/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
-- **[Testing Guide](docs/TESTING.md)** - Complete testing guide with examples
+- **[Development Guide](Documentation~/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
+- **[Testing Guide](Documentation~/TESTING.md)** - Complete testing guide with examples
 
 ## Available Tools (44 total)
 
