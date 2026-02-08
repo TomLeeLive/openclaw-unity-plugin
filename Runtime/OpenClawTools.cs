@@ -39,16 +39,21 @@ namespace OpenClaw.Unity
                 { "scene.getActive", SceneGetActive },
                 { "scene.getData", SceneGetData },
                 { "scene.load", SceneLoad },
+                { "scene.open", SceneOpen }, // Editor mode scene open
                 
                 // GameObject
                 { "gameobject.find", GameObjectFind },
                 { "gameobject.create", GameObjectCreate },
                 { "gameobject.destroy", GameObjectDestroy },
+                { "gameobject.delete", GameObjectDestroy }, // Alias for destroy
                 { "gameobject.getData", GameObjectGetData },
                 { "gameobject.setActive", GameObjectSetActive },
                 { "gameobject.setParent", GameObjectSetParent },
                 
                 // Transform
+                { "transform.getPosition", TransformGetPosition },
+                { "transform.getRotation", TransformGetRotation },
+                { "transform.getScale", TransformGetScale },
                 { "transform.setPosition", TransformSetPosition },
                 { "transform.setRotation", TransformSetRotation },
                 { "transform.setScale", TransformSetScale },
@@ -303,6 +308,60 @@ namespace OpenClaw.Unity
             return new { success = true, scene = name };
         }
         
+        private object SceneOpen(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var name = GetString(p, "name", null);
+            var path = GetString(p, "path", null);
+            
+            // Find scene path
+            string scenePath = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                scenePath = path;
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                // Search in build settings
+                for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+                {
+                    var sp = SceneUtility.GetScenePathByBuildIndex(i);
+                    if (System.IO.Path.GetFileNameWithoutExtension(sp) == name)
+                    {
+                        scenePath = sp;
+                        break;
+                    }
+                }
+                
+                // Search in Assets if not found
+                if (string.IsNullOrEmpty(scenePath))
+                {
+                    var guids = UnityEditor.AssetDatabase.FindAssets($"t:Scene {name}");
+                    if (guids.Length > 0)
+                    {
+                        scenePath = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    }
+                }
+            }
+            
+            if (string.IsNullOrEmpty(scenePath))
+            {
+                return new { success = false, error = $"Scene not found: {name ?? path}" };
+            }
+            
+            var mode = GetString(p, "mode", "Single");
+            var openMode = mode.ToLower() == "additive" 
+                ? UnityEditor.SceneManagement.OpenSceneMode.Additive 
+                : UnityEditor.SceneManagement.OpenSceneMode.Single;
+            
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath, openMode);
+            return new { success = true, scene = scenePath };
+            #else
+            return new { success = false, error = "scene.open is only available in Editor. Use scene.load in Play mode." };
+            #endif
+        }
+        
         #endregion
         
         #region GameObject Tools
@@ -389,7 +448,15 @@ namespace OpenClaw.Unity
             
             if (go != null)
             {
-                UnityEngine.Object.Destroy(go);
+                // Use DestroyImmediate in Editor mode (not playing), Destroy in Play mode
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(go);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
                 return new { success = true, destroyed = name };
             }
             
@@ -471,6 +538,48 @@ namespace OpenClaw.Unity
         #endregion
         
         #region Transform Tools
+        
+        private object TransformGetPosition(Dictionary<string, object> p)
+        {
+            var name = GetString(p, "name", null);
+            var go = GameObject.Find(name);
+            
+            if (go != null)
+            {
+                var pos = go.transform.position;
+                return new { success = true, x = pos.x, y = pos.y, z = pos.z };
+            }
+            
+            return new { success = false, error = $"GameObject '{name}' not found" };
+        }
+        
+        private object TransformGetRotation(Dictionary<string, object> p)
+        {
+            var name = GetString(p, "name", null);
+            var go = GameObject.Find(name);
+            
+            if (go != null)
+            {
+                var rot = go.transform.eulerAngles;
+                return new { success = true, x = rot.x, y = rot.y, z = rot.z };
+            }
+            
+            return new { success = false, error = $"GameObject '{name}' not found" };
+        }
+        
+        private object TransformGetScale(Dictionary<string, object> p)
+        {
+            var name = GetString(p, "name", null);
+            var go = GameObject.Find(name);
+            
+            if (go != null)
+            {
+                var scale = go.transform.localScale;
+                return new { success = true, x = scale.x, y = scale.y, z = scale.z };
+            }
+            
+            return new { success = false, error = $"GameObject '{name}' not found" };
+        }
         
         private object TransformSetPosition(Dictionary<string, object> p)
         {
@@ -571,7 +680,15 @@ namespace OpenClaw.Unity
             var component = go.GetComponent(type);
             if (component != null)
             {
-                UnityEngine.Object.Destroy(component);
+                // Use DestroyImmediate in Editor mode (not playing), Destroy in Play mode
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(component);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(component);
+                }
                 return new { success = true };
             }
             
@@ -879,10 +996,10 @@ namespace OpenClaw.Unity
                         var bytes = texture.EncodeToPNG();
                         System.IO.File.WriteAllBytes(path, bytes);
                         int w = texture.width, h = texture.height;
-                        UnityEngine.Object.Destroy(texture);
+                        SafeDestroy(texture);
                         return new { success = true, path = path, mode = "screencapture", width = w, height = h };
                     }
-                    if (texture != null) UnityEngine.Object.Destroy(texture);
+                    if (texture != null) SafeDestroy(texture);
                     
                     // If auto mode and screencapture failed, try camera
                     if (method == "screencapture")
@@ -921,8 +1038,8 @@ namespace OpenClaw.Unity
                         var bytes = texture.EncodeToPNG();
                         System.IO.File.WriteAllBytes(path, bytes);
                         
-                        UnityEngine.Object.Destroy(rt);
-                        UnityEngine.Object.Destroy(texture);
+                        SafeDestroy(rt);
+                        SafeDestroy(texture);
                         
                         return new { success = true, path = path, mode = "camera", width = width, height = height };
                     }
@@ -933,6 +1050,23 @@ namespace OpenClaw.Unity
             catch (System.Exception e)
             {
                 return new { success = false, error = e.Message };
+            }
+        }
+        
+        /// <summary>
+        /// Safely destroy an object - uses DestroyImmediate in Editor mode, Destroy in Play mode
+        /// </summary>
+        private void SafeDestroy(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+            
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(obj);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(obj);
             }
         }
         
@@ -1580,13 +1714,18 @@ namespace OpenClaw.Unity
                 "scene.list" => "List all scenes in build settings",
                 "scene.getActive" => "Get active scene info",
                 "scene.getData" => "Get scene hierarchy data",
-                "scene.load" => "Load a scene by name",
+                "scene.load" => "Load a scene by name (Play mode)",
+                "scene.open" => "Open a scene in Editor mode (EditorSceneManager)",
                 "gameobject.find" => "Find GameObjects by name, tag, or component type",
                 "gameobject.create" => "Create a new GameObject or primitive",
                 "gameobject.destroy" => "Destroy a GameObject",
+                "gameobject.delete" => "Delete a GameObject (alias for destroy)",
                 "gameobject.getData" => "Get detailed GameObject data",
                 "gameobject.setActive" => "Enable/disable a GameObject",
                 "gameobject.setParent" => "Change GameObject parent",
+                "transform.getPosition" => "Get position (x, y, z)",
+                "transform.getRotation" => "Get rotation (Euler angles x, y, z)",
+                "transform.getScale" => "Get local scale (x, y, z)",
                 "transform.setPosition" => "Set position",
                 "transform.setRotation" => "Set rotation (Euler angles)",
                 "transform.setScale" => "Set local scale",
