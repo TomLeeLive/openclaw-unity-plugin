@@ -1,6 +1,6 @@
 # OpenClaw Unity Plugin 문서
 
-> **버전:** 1.2.3 | **도구:** 50개 | **Unity:** 2021.3+
+> **버전:** 1.3.0 | **도구:** 50개 | **Unity:** 2021.3+
 
 ## 개요
 
@@ -171,4 +171,4 @@ private static void SafeDestroy(UnityEngine.Object obj)
 
 ---
 
-*마지막 업데이트: 2026-02-08 | OpenClaw Unity Plugin v1.2.3*
+*마지막 업데이트: 2026-02-08 | OpenClaw Unity Plugin v1.3.0*

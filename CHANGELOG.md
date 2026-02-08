@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-02-08
+
+### Changed
+- Unified version across plugin (package.json) and extension (OpenClawPlugin~)
+- Updated documentation to reflect v1.3.0
+
+### Documentation
+- Added Documentation~/README.md and README_KO.md (folder index)
+- Added Documentation~/index.md and index_KO.md (main documentation)
+- Updated all version references
+
 ## [1.2.3] - 2026-02-08
 
 ### Added

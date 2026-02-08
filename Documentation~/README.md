@@ -58,7 +58,7 @@ Comprehensive testing procedures:
 
 ## Version
 
-- **Plugin Version:** 1.2.3
+- **Plugin Version:** 1.3.0
 - **Unity Compatibility:** 2021.3+
 - **Total Tools:** 50
 

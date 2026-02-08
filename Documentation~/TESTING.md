@@ -1091,7 +1091,7 @@ Ask OpenClaw: "Test menu navigation. Settings > Audio > Volume control"
 
 - Check JSON format
 - Check parameter name case sensitivity
-- Check plugin version (v1.2.0+ required)
+- Check plugin version (v1.3.0+ required)
 
 ### Screenshot is black/empty
 

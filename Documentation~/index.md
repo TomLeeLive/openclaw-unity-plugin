@@ -1,6 +1,6 @@
 # OpenClaw Unity Plugin Documentation
 
-> **Version:** 1.2.3 | **Tools:** 50 | **Unity:** 2021.3+
+> **Version:** 1.3.0 | **Tools:** 50 | **Unity:** 2021.3+
 
 ## Overview
 
@@ -169,4 +169,4 @@ Dynamic component property access without compile-time dependencies (e.g., TextM
 
 ---
 
-*Last updated: 2026-02-08 | OpenClaw Unity Plugin v1.2.3*
+*Last updated: 2026-02-08 | OpenClaw Unity Plugin v1.3.0*
