@@ -297,6 +297,29 @@ Script recompilation requested. Unity will reload shortly.
 - In Editor mode: Uses `Camera.main.Render()` (no overlay UI)
 - Use Play mode for accurate game screenshots
 
+### Script changes not applied after Play mode restart
+Unity's "Enter Play Mode Settings" can skip domain reload for faster iteration, but this prevents script recompilation.
+
+**Symptoms:**
+- Code changes don't take effect when re-entering Play mode
+- Old behavior persists despite saving scripts
+- `editor.refresh` or `editor.recompile` has no effect during Play mode
+
+**Solution:**
+1. Go to `Edit → Project Settings → Editor`
+2. Find "Enter Play Mode Settings"
+3. Check ✅ **"Reload Domain"**
+
+**What this does:**
+| Setting | Reload Domain ON | Reload Domain OFF |
+|---------|------------------|-------------------|
+| Script changes | ✅ Applied on Play | ❌ Ignored until manual refresh |
+| Play mode entry | ~2-5 seconds | ~0.5 seconds |
+| Static variables | Reset | Preserved |
+| Best for | Development with active coding | Testing/playing without code changes |
+
+**Tip:** Keep "Reload Domain" ON during development. Only disable it when you need fast iteration without code changes.
+
 ## ⚠️ Important Notes
 
 - **Development Only**: Disable `allowCodeExecution` in production builds
