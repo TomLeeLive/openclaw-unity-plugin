@@ -317,6 +317,18 @@ Script recompilation requested. Unity will reload shortly.
 - In Editor mode: Uses `Camera.main.Render()` (no overlay UI)
 - Use Play mode for accurate game screenshots
 
+### Screen Lock / Remote Access
+When using `debug.screenshot` remotely (via SSH, screen sharing, etc.):
+
+| Game View Mode | Screen Lock | Screenshot Works? |
+|----------------|-------------|-------------------|
+| **Play Focused** | ✅ OK | ✅ Yes |
+| Normal | ❌ May fail | ⚠️ Depends |
+
+**Best Practice:** Set Game View to **"Play Focused"** mode before locking the screen. This ensures Unity keeps rendering the game even when the window isn't visible.
+
+To enable: Click the dropdown next to "Scale" in Game View → Select "Play Focused"
+
 ### Script changes not applied after Play mode restart
 Unity's "Enter Play Mode Settings" can skip domain reload for faster iteration, but this prevents script recompilation.
 
