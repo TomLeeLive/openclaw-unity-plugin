@@ -65,6 +65,24 @@ openclaw unity status
 
 Ask OpenClaw to inspect your scene, create objects, or debug issues - all without entering Play mode!
 
+### 4. Install OpenClaw Skill (Optional)
+
+Install the companion skill for enhanced Unity workflows:
+
+```bash
+# Copy skill to OpenClaw workspace
+cp -r skill ~/.openclaw/workspace/skills/unity-plugin
+
+# Or clone separately
+git clone https://github.com/TomLeeLive/openclaw-unity-skill.git ~/.openclaw/workspace/skills/unity-plugin
+```
+
+The skill provides:
+- Quick reference for all 44 tools
+- Common workflow patterns
+- Detailed parameter documentation
+- Troubleshooting guides
+
 ## 📚 Documentation
 
 - **[Development Guide](docs/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
