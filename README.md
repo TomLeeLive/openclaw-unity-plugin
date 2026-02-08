@@ -194,6 +194,8 @@ The skill provides:
 | `input.getMousePosition` | Get current cursor position |
 | `input.clickUI` | Click UI element by name |
 
+> ⚠️ **Input Simulation Limitation**: Keyboard/mouse simulation works for **UI interactions** (Button clicks, InputField typing) but NOT for gameplay input using `Input.GetKey()` or legacy Input Manager. This is a Unity limitation - `Input.GetKey()` reads directly from the OS input buffer. For automated gameplay testing, use `transform.setPosition` to move objects directly, or migrate to Unity's **new Input System** which supports programmatic input injection.
+
 ## Architecture
 
 ```
