@@ -32,6 +32,7 @@ namespace OpenClaw.Unity
                 // Console
                 { "console.getLogs", ConsoleGetLogs },
                 { "console.clear", ConsoleClear },
+                { "console.getErrors", ConsoleGetErrors },
                 
                 // Scene
                 { "scene.list", SceneList },
@@ -122,6 +123,16 @@ namespace OpenClaw.Unity
             var count = GetInt(p, "count", 100);
             var type = GetString(p, "type", null);
             
+            // Check if logger is available
+            if (_bridge?.Logger == null)
+            {
+                return new { 
+                    success = false, 
+                    error = "Logger not initialized. Check captureConsoleLogs in OpenClaw Config.",
+                    logs = new string[0]
+                };
+            }
+            
             LogType? filterType = null;
             if (!string.IsNullOrEmpty(type))
             {
@@ -135,13 +146,86 @@ namespace OpenClaw.Unity
                 };
             }
             
-            return _bridge.Logger?.GetLogsJson(count, filterType) ?? "[]";
+            try
+            {
+                var logs = _bridge.Logger.GetLogsJson(count, filterType);
+                return new { success = true, logs = logs ?? "[]" };
+            }
+            catch (System.Exception ex)
+            {
+                return new { success = false, error = ex.Message, logs = "[]" };
+            }
         }
         
         private object ConsoleClear(Dictionary<string, object> p)
         {
             _bridge.Logger?.Clear();
             return new { success = true };
+        }
+        
+        private object ConsoleGetErrors(Dictionary<string, object> p)
+        {
+            var count = GetInt(p, "count", 50);
+            var includeWarnings = GetBool(p, "includeWarnings", false);
+            
+            var errors = new List<Dictionary<string, object>>();
+            
+            // Try to get from logger first
+            if (_bridge?.Logger != null)
+            {
+                try
+                {
+                    var logs = _bridge.Logger.GetLogs(count * 2); // Get more to filter
+                    foreach (var log in logs)
+                    {
+                        if (log.type == LogType.Error || log.type == LogType.Exception ||
+                            (includeWarnings && log.type == LogType.Warning))
+                        {
+                            errors.Add(new Dictionary<string, object>
+                            {
+                                { "time", log.timestamp.ToString("HH:mm:ss.fff") },
+                                { "type", log.type.ToString() },
+                                { "message", log.message },
+                                { "stackTrace", log.stackTrace }
+                            });
+                            if (errors.Count >= count) break;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    return new { success = false, error = ex.Message, errors = new object[0] };
+                }
+            }
+            
+            // If no errors from logger, try reading recent compile errors
+            if (errors.Count == 0)
+            {
+                #if UNITY_EDITOR
+                try
+                {
+                    // Check for compile errors
+                    var hasCompileErrors = UnityEditor.EditorUtility.scriptCompilationFailed;
+                    if (hasCompileErrors)
+                    {
+                        errors.Add(new Dictionary<string, object>
+                        {
+                            { "time", System.DateTime.Now.ToString("HH:mm:ss") },
+                            { "type", "CompileError" },
+                            { "message", "Script compilation failed. Check Unity Console for details." },
+                            { "stackTrace", "" }
+                        });
+                    }
+                }
+                catch { }
+                #endif
+            }
+            
+            return new { 
+                success = true, 
+                count = errors.Count,
+                errors = errors 
+            };
         }
         
         #endregion
@@ -1492,6 +1576,7 @@ namespace OpenClaw.Unity
             {
                 "console.getLogs" => "Get Unity console logs with optional type filter",
                 "console.clear" => "Clear captured logs",
+                "console.getErrors" => "Get error and exception logs (with optional warnings)",
                 "scene.list" => "List all scenes in build settings",
                 "scene.getActive" => "Get active scene info",
                 "scene.getData" => "Get scene hierarchy data",
