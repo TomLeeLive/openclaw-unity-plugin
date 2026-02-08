@@ -43,6 +43,7 @@ namespace OpenClaw.Unity
                 
                 // GameObject
                 { "gameobject.find", GameObjectFind },
+                { "gameobject.getAll", GameObjectGetAll },
                 { "gameobject.create", GameObjectCreate },
                 { "gameobject.destroy", GameObjectDestroy },
                 { "gameobject.delete", GameObjectDestroy }, // Alias for destroy
@@ -404,6 +405,77 @@ namespace OpenClaw.Unity
             
             var depth = GetInt(p, "depth", 1);
             return results.Take(100).Select(go => GetGameObjectData(go, depth)).ToList();
+        }
+        
+        private object GameObjectGetAll(Dictionary<string, object> p)
+        {
+            var activeOnly = GetBool(p, "activeOnly", false);
+            var includePosition = GetBool(p, "includePosition", true);
+            var maxCount = GetInt(p, "maxCount", 500);
+            var rootOnly = GetBool(p, "rootOnly", false);
+            var nameFilter = GetString(p, "nameFilter", null);
+            
+            IEnumerable<GameObject> allObjects;
+            
+            if (rootOnly)
+            {
+                // Get only root level objects from active scene
+                var scene = SceneManager.GetActiveScene();
+                allObjects = scene.GetRootGameObjects();
+            }
+            else
+            {
+                // Get all objects including inactive
+                allObjects = Resources.FindObjectsOfTypeAll<GameObject>()
+                    .Where(go => go.scene.isLoaded); // Filter to scene objects only
+            }
+            
+            // Apply filters
+            if (activeOnly)
+            {
+                allObjects = allObjects.Where(go => go.activeInHierarchy);
+            }
+            
+            if (!string.IsNullOrEmpty(nameFilter))
+            {
+                allObjects = allObjects.Where(go => go.name.Contains(nameFilter, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            var results = allObjects.Take(maxCount).Select(go => {
+                var data = new Dictionary<string, object>
+                {
+                    { "name", go.name },
+                    { "active", go.activeInHierarchy },
+                    { "tag", go.tag },
+                    { "layer", LayerMask.LayerToName(go.layer) }
+                };
+                
+                if (includePosition)
+                {
+                    var t = go.transform;
+                    data["position"] = new Dictionary<string, float>
+                    {
+                        { "x", t.position.x },
+                        { "y", t.position.y },
+                        { "z", t.position.z }
+                    };
+                }
+                
+                // Add parent info
+                if (go.transform.parent != null)
+                {
+                    data["parent"] = go.transform.parent.name;
+                }
+                
+                return data;
+            }).ToList();
+            
+            return new Dictionary<string, object>
+            {
+                { "success", true },
+                { "count", results.Count },
+                { "objects", results }
+            };
         }
         
         private object GameObjectCreate(Dictionary<string, object> p)
@@ -1771,6 +1843,7 @@ namespace OpenClaw.Unity
                 "scene.load" => "Load a scene by name (Play mode)",
                 "scene.open" => "Open a scene in Editor mode (EditorSceneManager)",
                 "gameobject.find" => "Find GameObjects by name, tag, or component type",
+                "gameobject.getAll" => "Get all GameObjects in scene (params: activeOnly, includePosition, maxCount, rootOnly, nameFilter)",
                 "gameobject.create" => "Create a new GameObject or primitive",
                 "gameobject.destroy" => "Destroy a GameObject",
                 "gameobject.delete" => "Delete a GameObject (alias for destroy)",

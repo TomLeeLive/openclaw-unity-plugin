@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] - 2026-02-09
+
+### Added
+- `gameobject.getAll` - Get all GameObjects in scene with filtering options
+  - `activeOnly` - Filter to active objects only
+  - `includePosition` - Include position data (default: true)
+  - `maxCount` - Limit results (default: 500)
+  - `rootOnly` - Get only root level objects
+  - `nameFilter` - Filter by name (contains, case-insensitive)
+- Now **52 tools** total
+
 ## [1.3.2] - 2026-02-08
 
 ### Added
