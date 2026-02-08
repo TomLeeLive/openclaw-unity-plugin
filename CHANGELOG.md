@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-02-08
+
+### Added
+- `transform.getPosition` - Get world position (x, y, z)
+- `transform.getRotation` - Get Euler rotation (x, y, z)
+- `transform.getScale` - Get local scale (x, y, z)
+- `gameobject.delete` - Alias for `gameobject.destroy`
+- `scene.open` - Open scene in Editor mode using `EditorSceneManager`
+- `SafeDestroy()` helper method for proper object cleanup
+- Now **50 tools** total
+
+### Fixed
+- **Edit Mode Destroy Error**: "Destroy may not be called from edit mode"
+  - `GameObjectDestroy` now uses `DestroyImmediate` in Editor mode
+  - `ComponentRemove` now uses `DestroyImmediate` in Editor mode
+  - `DebugScreenshot` now uses `SafeDestroy()` for texture cleanup
+- All tools now work correctly in both Edit and Play modes
+
+### Changed
+- `scene.load` now clarifies it's for Play mode only
+- Tool descriptions updated with clearer parameter info
+
 ## [1.2.2] - 2026-02-07
 
 ### Changed
