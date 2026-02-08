@@ -108,6 +108,21 @@ namespace OpenClaw.Unity
             _sessionId = null;
         }
         
+        /// <summary>
+        /// Schedule an action to run after a delay (for input simulation timing)
+        /// </summary>
+        public void ScheduleAction(float delay, Action action)
+        {
+            if (action == null) return;
+            StartCoroutine(ScheduleActionCoroutine(delay, action));
+        }
+        
+        private IEnumerator ScheduleActionCoroutine(float delay, Action action)
+        {
+            yield return new WaitForSeconds(delay);
+            action?.Invoke();
+        }
+        
         private IEnumerator ConnectCoroutine()
         {
             SetState(ConnectionState.Connecting);

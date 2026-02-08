@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-02-08
+
+### Added
+- `IsKeyDown(KeyCode)` - Check if simulated key was just pressed this frame
+- `IsKeyUp(KeyCode)` - Check if simulated key was just released this frame
+- `ScheduleAction(float delay, Action action)` - Schedule delayed actions for input timing
+- Frame-accurate key state tracking for GetKeyDown/GetKeyUp support
+
+### Changed
+- `SimulateKeyPress` now properly respects duration parameter using scheduled release
+- Key press/release now marks frame for accurate GetKeyDown/GetKeyUp detection
+
+### Documentation
+- Updated README to clarify input simulation works with games that check OpenClaw simulated input
+- Added example of how games can integrate with OpenClaw input simulation
+
 ## [1.3.1] - 2026-02-08
 
 ### Added

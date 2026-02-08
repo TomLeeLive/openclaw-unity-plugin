@@ -1279,6 +1279,7 @@ namespace OpenClaw.Unity
             }
             
             _simulatedKeys[keyCode] = true;
+            MarkKeyDown(keyCode);  // Track frame for GetKeyDown
             QueueInputEvent(new InputEvent { Type = InputEventType.KeyDown, KeyCode = keyCode });
             
             return new { success = true, key = keyName, keyCode = keyCode.ToString(), state = "down" };
@@ -1294,6 +1295,7 @@ namespace OpenClaw.Unity
             }
             
             _simulatedKeys[keyCode] = false;
+            MarkKeyUp(keyCode);  // Track frame for GetKeyUp
             QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
             
             return new { success = true, key = keyName, keyCode = keyCode.ToString(), state = "up" };
@@ -1547,11 +1549,26 @@ namespace OpenClaw.Unity
         private void SimulateKeyPress(KeyCode keyCode, float duration)
         {
             _simulatedKeys[keyCode] = true;
+            MarkKeyDown(keyCode);
             QueueInputEvent(new InputEvent { Type = InputEventType.KeyDown, KeyCode = keyCode });
-            // Note: In a real implementation, we'd use a coroutine to delay the key up
-            // For now, we immediately queue the key up
-            QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
-            _simulatedKeys[keyCode] = false;
+            
+            // Schedule key release after duration
+            if (_bridge != null)
+            {
+                _bridge.ScheduleAction(duration, () =>
+                {
+                    _simulatedKeys[keyCode] = false;
+                    MarkKeyUp(keyCode);
+                    QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
+                });
+            }
+            else
+            {
+                // Fallback: immediate release
+                _simulatedKeys[keyCode] = false;
+                MarkKeyUp(keyCode);
+                QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
+            }
         }
         
         private bool TryParseKeyCode(string keyName, out KeyCode keyCode)
@@ -1691,6 +1708,42 @@ namespace OpenClaw.Unity
         public static bool IsKeyPressed(KeyCode keyCode)
         {
             return _simulatedKeys.TryGetValue(keyCode, out var pressed) && pressed;
+        }
+        
+        // Track key state transitions per frame
+        private static Dictionary<KeyCode, int> _keyDownFrame = new Dictionary<KeyCode, int>();
+        private static Dictionary<KeyCode, int> _keyUpFrame = new Dictionary<KeyCode, int>();
+        
+        /// <summary>
+        /// Check if a simulated key was just pressed this frame
+        /// </summary>
+        public static bool IsKeyDown(KeyCode keyCode)
+        {
+            return _keyDownFrame.TryGetValue(keyCode, out var frame) && frame == Time.frameCount;
+        }
+        
+        /// <summary>
+        /// Check if a simulated key was just released this frame
+        /// </summary>
+        public static bool IsKeyUp(KeyCode keyCode)
+        {
+            return _keyUpFrame.TryGetValue(keyCode, out var frame) && frame == Time.frameCount;
+        }
+        
+        /// <summary>
+        /// Internal: Mark key as just pressed
+        /// </summary>
+        internal static void MarkKeyDown(KeyCode keyCode)
+        {
+            _keyDownFrame[keyCode] = Time.frameCount;
+        }
+        
+        /// <summary>
+        /// Internal: Mark key as just released
+        /// </summary>
+        internal static void MarkKeyUp(KeyCode keyCode)
+        {
+            _keyUpFrame[keyCode] = Time.frameCount;
         }
         
         /// <summary>
