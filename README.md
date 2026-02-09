@@ -9,6 +9,7 @@ Connect Unity to [OpenClaw](https://github.com/openclaw/openclaw) AI assistant v
 [![Unity](https://img.shields.io/badge/Unity-2021.3+-black?logo=unity)](https://unity.com)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.2.3+-green)](https://github.com/openclaw/openclaw)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/tomleelive)
 
 ## ✨ Key Features
 
