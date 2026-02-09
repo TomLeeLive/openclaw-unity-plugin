@@ -1476,6 +1476,22 @@ namespace OpenClaw.Unity
                 QueueInputEvent(new InputEvent { Type = InputEventType.MouseUp, Button = button, Position = targetPos });
             }
             
+            // Also set simulated key state for Mouse buttons (so IsKeyPressed works)
+            var mouseKeyCode = button switch
+            {
+                0 => KeyCode.Mouse0,
+                1 => KeyCode.Mouse1,
+                2 => KeyCode.Mouse2,
+                _ => KeyCode.Mouse0
+            };
+            _simulatedKeys[mouseKeyCode] = true;
+            _keyDownFrame[mouseKeyCode] = Time.frameCount;
+            // Schedule release after a short time
+            _bridge.ScheduleAction(0.1f, () => {
+                _simulatedKeys[mouseKeyCode] = false;
+                _keyUpFrame[mouseKeyCode] = Time.frameCount;
+            });
+            
             return new { success = true, x = targetPos.x, y = targetPos.y, button = button, clicks = clicks, method = "raw_events" };
         }
         
