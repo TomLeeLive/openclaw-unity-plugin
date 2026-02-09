@@ -90,7 +90,7 @@ git clone https://github.com/TomLeeLive/openclaw-unity-skill.git ~/.openclaw/wor
 ```
 
 The skill provides:
-- Quick reference for all 50 tools
+- Quick reference for all 52 tools
 - Common workflow patterns (scene inspection, UI testing, etc.)
 - Detailed parameter documentation
 - Troubleshooting guides
@@ -102,7 +102,7 @@ The skill provides:
 - **[Development Guide](Documentation~/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
 - **[Testing Guide](Documentation~/TESTING.md)** - Complete testing guide with examples
 
-## Available Tools (50 total)
+## Available Tools (52 total)
 
 ### Console (3 tools)
 | Tool | Description |
@@ -120,10 +120,11 @@ The skill provides:
 | `scene.load` | Load a scene by name (Play mode) |
 | `scene.open` | Open a scene in Editor mode |
 
-### GameObject (7 tools)
+### GameObject (8 tools)
 | Tool | Description |
 |------|-------------|
 | `gameobject.find` | Find by name, tag, or component type |
+| `gameobject.getAll` | Get all GameObjects with filtering |
 | `gameobject.create` | Create GameObject or primitive |
 | `gameobject.destroy` | Destroy a GameObject |
 | `gameobject.delete` | Delete a GameObject (alias for destroy) |
