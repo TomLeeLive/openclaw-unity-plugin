@@ -1,6 +1,6 @@
 {
   "name": "unity",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "OpenClaw Unity Bridge Plugin",
   "main": "index.ts",
   "type": "module",

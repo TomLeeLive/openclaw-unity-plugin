@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.4] - 2026-02-09
+
+### Added
+- Buy Me a Coffee support (`.github/FUNDING.yml`)
+- Sponsor badge in README
+
+### Changed
+- Branding: Updated emoji from 🐾 to 🦞
+
 ## [1.3.3] - 2026-02-09
 
 ### Added

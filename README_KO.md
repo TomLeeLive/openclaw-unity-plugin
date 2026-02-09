@@ -1,4 +1,4 @@
-# 🐾 OpenClaw Unity Plugin
+# 🦞 OpenClaw Unity Plugin
 
 Unity를 [OpenClaw](https://github.com/openclaw/openclaw) AI 어시스턴트와 HTTP로 연결합니다. **Play 모드 없이 Editor 모드에서도 작동**합니다!
 
@@ -352,4 +352,4 @@ MIT 라이선스 - [LICENSE](LICENSE) 참조
 
 ---
 
-Made with 🐾 by the OpenClaw community
+Made with 🦞 by the OpenClaw community
