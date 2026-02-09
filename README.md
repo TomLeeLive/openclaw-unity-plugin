@@ -1,4 +1,4 @@
-# 🐾 OpenClaw Unity Plugin
+# 🦞 OpenClaw Unity Plugin
 
 > **TL;DR:** Vibe-code your game development remotely from anywhere! 🌍
 > 
@@ -371,4 +371,4 @@ MIT License - See [LICENSE](LICENSE)
 
 ---
 
-Made with 🐾 by the OpenClaw community
+Made with 🦞 by the OpenClaw community
