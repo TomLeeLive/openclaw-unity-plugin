@@ -6,6 +6,16 @@ Unity를 [OpenClaw](https://github.com/openclaw/openclaw) AI 어시스턴트와 
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.2.3+-green)](https://github.com/openclaw/openclaw)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+## ⚠️ 면책 조항
+
+이 소프트웨어는 **베타** 버전입니다. 사용에 따른 책임은 본인에게 있습니다.
+
+- 사용 전 항상 프로젝트를 백업하세요
+- 별도의 테스트 프로젝트에서 먼저 테스트하세요
+- 저작자는 데이터 손실이나 프로젝트 손상에 대해 책임지지 않습니다
+
+전체 조항은 [LICENSE](LICENSE)를 참조하세요.
+
 ## ✨ 주요 기능
 
 - 🎮 **Editor & Play 모드 모두 지원** - AI 도구 사용에 Play 버튼 불필요
