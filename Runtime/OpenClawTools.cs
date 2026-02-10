@@ -40,6 +40,8 @@ namespace OpenClaw.Unity
                 { "scene.getData", SceneGetData },
                 { "scene.load", SceneLoad },
                 { "scene.open", SceneOpen }, // Editor mode scene open
+                { "scene.save", SceneSave }, // Editor mode scene save
+                { "scene.saveAll", SceneSaveAll }, // Editor mode save all scenes
                 
                 // GameObject
                 { "gameobject.find", GameObjectFind },
@@ -361,6 +363,33 @@ namespace OpenClaw.Unity
             return new { success = true, scene = scenePath };
             #else
             return new { success = false, error = "scene.open is only available in Editor. Use scene.load in Play mode." };
+            #endif
+        }
+        
+        private object SceneSave(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (!scene.IsValid())
+                return new { success = false, error = "No active scene" };
+            
+            if (string.IsNullOrEmpty(scene.path))
+                return new { success = false, error = "Scene has no path. Use scene.saveAs with a path." };
+            
+            bool saved = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+            return new { success = saved, scene = scene.name, path = scene.path };
+            #else
+            return new { success = false, error = "scene.save is only available in Editor mode." };
+            #endif
+        }
+        
+        private object SceneSaveAll(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            bool saved = UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
+            return new { success = saved, message = "All open scenes saved" };
+            #else
+            return new { success = false, error = "scene.saveAll is only available in Editor mode." };
             #endif
         }
         
@@ -1855,6 +1884,8 @@ namespace OpenClaw.Unity
                 "scene.getData" => "Get scene hierarchy data",
                 "scene.load" => "Load a scene by name (Play mode)",
                 "scene.open" => "Open a scene in Editor mode (EditorSceneManager)",
+                "scene.save" => "Save the active scene (Editor mode only)",
+                "scene.saveAll" => "Save all open scenes (Editor mode only)",
                 "gameobject.find" => "Find GameObjects by name, tag, or component type",
                 "gameobject.getAll" => "Get all GameObjects in scene (params: activeOnly, includePosition, maxCount, rootOnly, nameFilter)",
                 "gameobject.create" => "Create a new GameObject or primitive",
