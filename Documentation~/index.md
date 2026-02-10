@@ -34,7 +34,7 @@ OpenClaw Unity Plugin connects your Unity project to the OpenClaw AI assistant v
 │                         │                                    │
 │                         ▼                                    │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │           OpenClawTools (50 tools)                      │ │
+│  │           OpenClawTools (55 tools)                      │ │
 │  │                                                          │ │
 │  │  • Scene/GameObject/Component manipulation              │ │
 │  │  • Debug tools (screenshot, hierarchy)                  │ │
@@ -79,7 +79,7 @@ OpenClaw Unity Plugin connects your Unity project to the OpenClaw AI assistant v
 
 ### OpenClawTools
 - **Location:** `Runtime/OpenClawTools.cs`
-- **Role:** Tool implementations (50 tools)
+- **Role:** Tool implementations (55 tools)
 - **Categories:**
   - Console (3): getLogs, getErrors, clear
   - Scene (5): list, getActive, getData, load, open

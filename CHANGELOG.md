@@ -2,12 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.6] - 2026-02-10
+
+### Added
+- `editor.domainReload` - Force domain reload (reinitializes static fields)
+- Now **55 tools** total
+
+### Fixed
+- Documentation updated to reflect all new tools
+
 ## [1.3.5] - 2026-02-10
 
 ### Added
 - `scene.save` - Save the active scene (Editor mode only)
 - `scene.saveAll` - Save all open scenes (Editor mode only)
-- Now **54 tools** total
 
 ## [1.3.4] - 2026-02-09
 

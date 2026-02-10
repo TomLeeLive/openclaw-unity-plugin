@@ -91,7 +91,7 @@ git clone https://github.com/TomLeeLive/openclaw-unity-skill.git ~/.openclaw/wor
 ```
 
 The skill provides:
-- Quick reference for all 52 tools
+- Quick reference for all 55 tools
 - Common workflow patterns (scene inspection, UI testing, etc.)
 - Detailed parameter documentation
 - Troubleshooting guides
@@ -112,7 +112,7 @@ The skill provides:
 | `console.getErrors` | Get error/exception logs (with optional warnings) |
 | `console.clear` | Clear captured logs |
 
-### Scene (5 tools)
+### Scene (7 tools)
 | Tool | Description |
 |------|-------------|
 | `scene.list` | List all scenes in build settings |
@@ -120,6 +120,8 @@ The skill provides:
 | `scene.getData` | Get scene hierarchy data |
 | `scene.load` | Load a scene by name (Play mode) |
 | `scene.open` | Open a scene in Editor mode |
+| `scene.save` | Save active scene (Editor mode) |
+| `scene.saveAll` | Save all open scenes (Editor mode) |
 
 ### GameObject (8 tools)
 | Tool | Description |
@@ -174,11 +176,12 @@ The skill provides:
 | `debug.screenshot` | Capture screenshot (with UI) |
 | `debug.hierarchy` | Text hierarchy view |
 
-### Editor (NEW in v1.2.0)
+### Editor (5 tools)
 | Tool | Description |
 |------|-------------|
 | `editor.refresh` | Refresh AssetDatabase (triggers recompile) |
 | `editor.recompile` | Request script recompilation |
+| `editor.domainReload` | Force domain reload (reinitializes static fields) |
 | `editor.focusWindow` | Focus Editor window (game/scene/console/hierarchy/project/inspector) |
 | `editor.listWindows` | List all open Editor windows |
 
@@ -226,7 +229,7 @@ The skill provides:
 │                         │                                    │
 │                         ▼                                    │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │           OpenClawTools (50 tools)                      │ │
+│  │           OpenClawTools (55 tools)                      │ │
 │  │                                                          │ │
 │  │  • Scene/GameObject/Component manipulation              │ │
 │  │  • Debug tools (screenshot, hierarchy)                  │ │

@@ -87,6 +87,7 @@ namespace OpenClaw.Unity
                 // Editor (Unity Editor control)
                 { "editor.refresh", EditorRefresh },
                 { "editor.recompile", EditorRecompile },
+                { "editor.domainReload", EditorDomainReload },
                 { "editor.focusWindow", EditorFocusWindow },
                 { "editor.listWindows", EditorListWindows },
                 
@@ -1233,6 +1234,17 @@ namespace OpenClaw.Unity
             #if UNITY_EDITOR
             UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
             return new { success = true, action = "RequestScriptCompilation" };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object EditorDomainReload(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            // This forces a full domain reload, reinitializing all static fields
+            UnityEditor.EditorUtility.RequestScriptReload();
+            return new { success = true, action = "RequestScriptReload", note = "Domain reload requested. Connection will reconnect automatically." };
             #else
             return new { success = false, error = "Only available in Editor" };
             #endif

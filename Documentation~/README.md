@@ -10,7 +10,7 @@ This folder contains comprehensive documentation for the OpenClaw Unity Plugin.
 | [index_KO.md](index_KO.md) | Main documentation (Korean) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | **Development guide** - How to extend tools, add new features, and contribute |
 | [DEVELOPMENT_KO.md](DEVELOPMENT_KO.md) | Development guide (Korean) |
-| [TESTING.md](TESTING.md) | **Testing guide** - Manual testing procedures for all 50 tools |
+| [TESTING.md](TESTING.md) | **Testing guide** - Manual testing procedures for all 55 tools |
 | [TESTING_KO.md](TESTING_KO.md) | Testing guide (Korean) |
 
 ## File Descriptions
