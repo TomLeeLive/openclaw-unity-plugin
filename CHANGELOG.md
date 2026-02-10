@@ -1,4 +1,10 @@
 # Changelog
+## [1.3.7] - 2026-02-11
+
+### Added
+- Security documentation: `disableModelInvocation` setting explanation
+- Added recommendation for ClawHub publishing
+
 
 All notable changes to this project will be documented in this file.
 

@@ -336,6 +336,28 @@ Unity의 "Enter Play Mode Settings"는 빠른 반복을 위해 도메인 리로�
 
 **팁:** 개발 중에는 "Reload Domain" ON 유지. 코드 변경 없이 빠른 반복이 필요할 때만 비활성화.
 
+## 🔐 보안: 모델 호출 설정
+
+ClawHub에 퍼블리시하거나 스킬로 설치할 때, 스킬 메타데이터에서 `disableModelInvocation`을 설정할 수 있습니다:
+
+| 설정 | AI 자동 호출 | 사용자 명시적 요청 |
+|------|-------------|------------------|
+| `false` (기본값) | ✅ 허용 | ✅ 허용 |
+| `true` | ❌ 차단 | ✅ 허용 |
+
+### Unity 플러그인 권장: **`true`**
+
+**이유:** Unity 작업 중 AI가 자율적으로 씬 확인, 스크린샷, GameObject 검사 등 보조 작업을 수행하는 것이 유용함.
+
+**`true` 사용 시기:** 민감한 도구 (결제, 삭제, 메시지 전송 등)에 적합
+
+```yaml
+# 스킬 메타데이터 예시
+metadata:
+  openclaw:
+    disableModelInvocation: true  # Unity 플러그인 권장값
+```
+
 ## ⚠️ 중요 사항
 
 - **개발 전용**: 프로덕션 빌드에서는 `allowCodeExecution` 비활성화

@@ -359,6 +359,28 @@ Unity's "Enter Play Mode Settings" can skip domain reload for faster iteration, 
 
 **Tip:** Keep "Reload Domain" ON during development. Only disable it when you need fast iteration without code changes.
 
+## 🔐 Security: Model Invocation Setting
+
+When publishing to ClawHub or installing as a skill, you can configure `disableModelInvocation` in the skill metadata:
+
+| Setting | AI Auto-Invoke | User Explicit Request |
+|---------|---------------|----------------------|
+| `false` (default) | ✅ Allowed | ✅ Allowed |
+| `true` | ❌ Blocked | ✅ Allowed |
+
+### Recommendation for Unity Plugin: **`true`**
+
+**Reason:** During Unity development, it's useful for AI to autonomously perform supporting tasks like checking scene hierarchy, taking screenshots, and inspecting GameObjects.
+
+**When to use `true`:** For sensitive tools (payments, deletions, message sending, etc.)
+
+```yaml
+# Example skill metadata
+metadata:
+  openclaw:
+    disableModelInvocation: true  # Recommended for Unity plugin
+```
+
 ## ⚠️ Important Notes
 
 - **Development Only**: Disable `allowCodeExecution` in production builds
