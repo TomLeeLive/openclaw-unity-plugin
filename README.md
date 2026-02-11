@@ -144,7 +144,7 @@ The skill provides:
 - **[Development Guide](Documentation~/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
 - **[Testing Guide](Documentation~/TESTING.md)** - Complete testing guide with examples
 
-## Available Tools (52 total)
+## Available Tools (~80 total)
 
 ### Console (3 tools)
 | Tool | Description |
@@ -195,10 +195,10 @@ The skill provides:
 | `component.set` | Set field/property value |
 | `component.list` | List available types |
 
-### Script
+### Script (3 tools)
 | Tool | Description |
 |------|-------------|
-| `script.execute` | Execute simple commands |
+| `script.execute` | Execute code/methods (Debug.Log, Time.timeScale, PlayerPrefs, reflection calls) |
 | `script.read` | Read script file contents |
 | `script.list` | List script files in project |
 
@@ -242,6 +242,50 @@ The skill provides:
 
 > ⚠️ **Input Simulation Limitation**: Keyboard/mouse simulation works for **UI interactions** (Button clicks, InputField typing) but NOT for gameplay input using `Input.GetKey()` or legacy Input Manager. This is a Unity limitation - `Input.GetKey()` reads directly from the OS input buffer. For automated gameplay testing, use `transform.setPosition` to move objects directly, or migrate to Unity's **new Input System** which supports programmatic input injection.
 
+### Material (5 tools) - NEW in v1.5.0
+| Tool | Description |
+|------|-------------|
+| `material.create` | Create material with shader, color, metallic, smoothness |
+| `material.assign` | Assign material to GameObject |
+| `material.modify` | Modify material properties (color, metallic, emission, etc.) |
+| `material.getInfo` | Get detailed material info with all shader properties |
+| `material.list` | List materials in project with filtering |
+
+### Prefab (5 tools) - NEW in v1.5.0
+| Tool | Description |
+|------|-------------|
+| `prefab.create` | Create prefab from scene GameObject |
+| `prefab.instantiate` | Instantiate prefab in scene with position |
+| `prefab.open` | Open prefab for editing |
+| `prefab.close` | Close prefab editing mode |
+| `prefab.save` | Save currently edited prefab |
+
+### Asset (7 tools) - NEW in v1.5.0
+| Tool | Description |
+|------|-------------|
+| `asset.find` | Search assets by query, type, folder |
+| `asset.copy` | Copy asset to new path |
+| `asset.move` | Move/rename asset |
+| `asset.delete` | Delete asset (with trash option) |
+| `asset.refresh` | Refresh AssetDatabase |
+| `asset.import` | Import/reimport specific asset |
+| `asset.getPath` | Get asset path by name |
+
+### Package Manager (4 tools) - NEW in v1.5.0
+| Tool | Description |
+|------|-------------|
+| `package.add` | Install package by name or git URL |
+| `package.remove` | Remove installed package |
+| `package.list` | List installed packages |
+| `package.search` | Search Unity package registry |
+
+### Test Runner (3 tools) - NEW in v1.5.0
+| Tool | Description |
+|------|-------------|
+| `test.run` | Run EditMode/PlayMode tests with filtering |
+| `test.list` | List available tests |
+| `test.getResults` | Get last test run results |
+
 ## Architecture
 
 ```
@@ -270,7 +314,7 @@ The skill provides:
 │                         │                                    │
 │                         ▼                                    │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │           OpenClawTools (55 tools)                      │ │
+│  │           OpenClawTools (~80 tools)                     │ │
 │  │                                                          │ │
 │  │  • Scene/GameObject/Component manipulation              │ │
 │  │  • Debug tools (screenshot, hierarchy)                  │ │
