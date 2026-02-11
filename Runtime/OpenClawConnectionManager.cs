@@ -308,11 +308,21 @@ namespace OpenClaw.Unity
             _isPolling = false;
         }
         
+        private static int _pollCount = 0;
+        private static double _lastPollDiagLog = 0;
+        
         private async Task PollForCommands()
         {
             if (string.IsNullOrEmpty(SessionId)) return;
             
+            _pollCount++;
             _lastPoll = DateTime.UtcNow;
+            
+            // Log poll count every 20 polls (about 10 seconds)
+            if (_pollCount % 20 == 0)
+            {
+                Debug.Log($"[OpenClaw Diag] Poll count: {_pollCount}, Session: {SessionId?.Substring(0, Math.Min(20, SessionId.Length))}...");
+            }
             
             var response = await _httpClient.GetAsync(
                 GetFullUrl($"unity/poll?sessionId={SessionId}"),
@@ -334,8 +344,13 @@ namespace OpenClaw.Unity
                 var responseText = await response.Content.ReadAsStringAsync();
                 if (!string.IsNullOrEmpty(responseText) && responseText != "{}" && responseText != "null")
                 {
+                    Debug.Log($"[OpenClaw Diag] Received poll response: {responseText.Substring(0, Math.Min(100, responseText.Length))}...");
                     ProcessCommand(responseText);
                 }
+            }
+            else
+            {
+                Debug.LogWarning($"[OpenClaw Diag] Poll failed with status: {response.StatusCode}");
             }
         }
         
@@ -370,6 +385,8 @@ namespace OpenClaw.Unity
         {
             try
             {
+                Debug.Log($"[OpenClaw Diag] ProcessCommand called, json length: {json?.Length ?? 0}");
+                
                 var command = ParseJson(json);
                 var tool = command.TryGetValue("tool", out var t) ? t?.ToString() : null;
                 var requestId = command.TryGetValue("requestId", out var r) ? r?.ToString() : null;
@@ -392,37 +409,44 @@ namespace OpenClaw.Unity
                     }
                 }
                 
-                Debug.Log($"[OpenClaw] Received command: {tool}");
+                Debug.Log($"[OpenClaw] Received command: {tool}, requestId: {requestId}");
                 OnCommandReceived?.Invoke(json);
                 
                 // Execute on main thread
+                Debug.Log($"[OpenClaw Diag] Queueing tool for main thread: {tool}");
                 RunOnMainThread(() => ExecuteCommand(tool, parameters, requestId));
             }
             catch (Exception e)
             {
-                Debug.LogError($"[OpenClaw] Failed to process command: {e.Message}");
+                Debug.LogError($"[OpenClaw] Failed to process command: {e.Message}\n{e.StackTrace}");
             }
         }
         
         private async void ExecuteCommand(string tool, string parameters, string requestId)
         {
+            Debug.Log($"[OpenClaw Diag] ExecuteCommand START: {tool}, requestId: {requestId}");
+            
             object result = null;
             string error = null;
             
             try
             {
+                Debug.Log($"[OpenClaw Diag] Calling _tools.Execute for: {tool}");
                 result = _tools.Execute(tool, parameters);
+                Debug.Log($"[OpenClaw Diag] Tool execution completed: {tool}, result type: {result?.GetType().Name ?? "null"}");
             }
             catch (Exception e)
             {
                 error = e.Message;
-                Debug.LogError($"[OpenClaw] Tool execution failed: {e}");
+                Debug.LogError($"[OpenClaw] Tool execution failed: {e}\n{e.StackTrace}");
             }
             
             OnToolExecuted?.Invoke(tool, result);
             
             // Send result back
+            Debug.Log($"[OpenClaw Diag] Sending result for: {tool}, requestId: {requestId}");
             await SendResult(requestId, tool, result, error);
+            Debug.Log($"[OpenClaw Diag] ExecuteCommand END: {tool}");
         }
         
         private async Task SendResult(string requestId, string tool, object result, string error)
