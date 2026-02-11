@@ -2,6 +2,44 @@
 
 다양한 사용 사례에 맞게 OpenClaw Unity Plugin을 설정하는 방법을 설명합니다.
 
+## 🤔 어떤 모드가 필요한가요?
+
+설정하기 전에 어떤 모드가 적합한지 확인하세요:
+
+| AI 사용 방식 | 필요한 모드 | 이유 |
+|-------------|------------|------|
+| **채팅 앱** (Telegram, Discord) | 모드 A: Gateway | OpenClaw가 Unity로 명령 전달 |
+| **Claude Code** 터미널에서 | 모드 B: MCP | 직접 연결 필요 |
+| **둘 다** | 하이브리드 | 모든 상황 대응 |
+
+### 이미 OpenClaw를 사용 중이라면...
+
+OpenClaw를 통해 AI 어시스턴트와 채팅 중이라면 (Telegram, Discord 등), **MCP 설정이 필요 없습니다** - 어시스턴트가 이미 Gateway를 통해 Unity 도구에 접근 가능!
+
+```
+나 (Telegram) → OpenClaw Gateway → AI 어시스턴트 → unity_execute 도구 → Unity
+                                   ↑
+                            이미 접근 가능!
+```
+
+### MCP가 유용한 경우
+
+MCP가 필요한 경우:
+1. **Claude Code를 터미널에서 직접 사용** (OpenClaw 거치지 않고)
+2. **Claude Desktop** 앱 사용
+3. **Cursor** 또는 기타 MCP 호환 에디터 사용
+4. **OpenClaw에서 Claude Code를 sub-agent로 spawn**하여 코딩 + 테스트 워크플로우
+
+```
+# MCP 없이:
+$ claude
+> Unity 제어해줘  →  ❌ 도구 없음
+
+# MCP 설정 후:
+$ claude  
+> Unity 제어해줘  →  ✅ unity.* 도구 사용 가능
+```
+
 ## 🅰️ 모드 A: OpenClaw Gateway (원격 접속)
 
 **언제 사용?** Telegram, Discord, 웹에서 원격으로 게임 개발하고 싶을 때

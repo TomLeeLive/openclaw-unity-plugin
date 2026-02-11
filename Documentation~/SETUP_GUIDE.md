@@ -2,6 +2,44 @@
 
 This guide explains how to set up the OpenClaw Unity Plugin for different use cases.
 
+## 🤔 Which Mode Do I Need?
+
+Before diving into setup, understand which mode fits your workflow:
+
+| How You Use AI | Mode Needed | Why |
+|----------------|-------------|-----|
+| **Chat apps** (Telegram, Discord) | Mode A: Gateway | OpenClaw routes commands to Unity |
+| **Claude Code** in terminal | Mode B: MCP | Direct connection needed |
+| **Both** | Hybrid | Best of both worlds |
+
+### If You Already Use OpenClaw...
+
+If you're chatting with an AI assistant through OpenClaw (like Telegram or Discord), **you don't need MCP setup** - the assistant already has Unity tools via the Gateway!
+
+```
+You (Telegram) → OpenClaw Gateway → AI Assistant → unity_execute tool → Unity
+                                    ↑
+                            Already has access!
+```
+
+### When MCP is Useful
+
+MCP is useful when:
+1. **Using Claude Code directly** in terminal (not through OpenClaw)
+2. **Using Claude Desktop** app
+3. **Using Cursor** or other MCP-compatible editors
+4. **Spawning Claude Code as sub-agent** from OpenClaw for coding + testing workflows
+
+```
+# Without MCP:
+$ claude
+> Control Unity  →  ❌ No tools available
+
+# With MCP:
+$ claude  
+> Control Unity  →  ✅ unity.* tools available
+```
+
 ## 🅰️ Mode A: OpenClaw Gateway (Remote Access)
 
 **When to use:** When you want to develop games remotely via Telegram, Discord, or web.
