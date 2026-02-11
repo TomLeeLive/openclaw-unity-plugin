@@ -3264,41 +3264,185 @@ namespace OpenClaw.Unity
         private Dictionary<string, object> ParseJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return new Dictionary<string, object>();
-            
-            // Simple JSON parser for flat objects
-            var result = new Dictionary<string, object>();
             json = json.Trim();
+            if (!json.StartsWith("{")) return new Dictionary<string, object>();
             
-            if (!json.StartsWith("{")) return result;
+            int index = 0;
+            return ParseJsonObject(json, ref index);
+        }
+        
+        private Dictionary<string, object> ParseJsonObject(string json, ref int index)
+        {
+            var result = new Dictionary<string, object>();
             
-            json = json.Substring(1, json.Length - 2); // Remove { }
+            // Skip '{'
+            while (index < json.Length && (json[index] == '{' || char.IsWhiteSpace(json[index])))
+                index++;
             
-            // Very basic parsing - real implementation should use JsonUtility or Newtonsoft
-            var parts = json.Split(',');
-            foreach (var part in parts)
+            while (index < json.Length)
             {
-                var kv = part.Split(new[] { ':' }, 2);
-                if (kv.Length == 2)
+                // Skip whitespace
+                while (index < json.Length && char.IsWhiteSpace(json[index]))
+                    index++;
+                
+                if (index >= json.Length || json[index] == '}')
                 {
-                    var key = kv[0].Trim().Trim('"');
-                    var value = kv[1].Trim();
-                    
-                    if (value.StartsWith("\""))
-                        result[key] = value.Trim('"');
-                    else if (value == "true")
-                        result[key] = true;
-                    else if (value == "false")
-                        result[key] = false;
-                    else if (value == "null")
-                        result[key] = null;
-                    else if (float.TryParse(value, out var f))
-                        result[key] = f;
-                    else
-                        result[key] = value;
+                    index++;
+                    break;
+                }
+                
+                // Parse key
+                var key = ParseJsonString(json, ref index);
+                
+                // Skip ':'
+                while (index < json.Length && (json[index] == ':' || char.IsWhiteSpace(json[index])))
+                    index++;
+                
+                // Parse value
+                var value = ParseJsonValue(json, ref index);
+                result[key] = value;
+                
+                // Skip ',' or '}'
+                while (index < json.Length && (json[index] == ',' || char.IsWhiteSpace(json[index])))
+                    index++;
+                
+                if (index < json.Length && json[index] == '}')
+                {
+                    index++;
+                    break;
                 }
             }
             
             return result;
+        }
+        
+        private List<object> ParseJsonArrayInternal(string json, ref int index)
+        {
+            var result = new List<object>();
+            
+            // Skip '['
+            while (index < json.Length && (json[index] == '[' || char.IsWhiteSpace(json[index])))
+                index++;
+            
+            while (index < json.Length)
+            {
+                // Skip whitespace
+                while (index < json.Length && char.IsWhiteSpace(json[index]))
+                    index++;
+                
+                if (index >= json.Length || json[index] == ']')
+                {
+                    index++;
+                    break;
+                }
+                
+                // Parse value
+                var value = ParseJsonValue(json, ref index);
+                result.Add(value);
+                
+                // Skip ',' or ']'
+                while (index < json.Length && (json[index] == ',' || char.IsWhiteSpace(json[index])))
+                    index++;
+                
+                if (index < json.Length && json[index] == ']')
+                {
+                    index++;
+                    break;
+                }
+            }
+            
+            return result;
+        }
+        
+        private object ParseJsonValue(string json, ref int index)
+        {
+            while (index < json.Length && char.IsWhiteSpace(json[index]))
+                index++;
+            
+            if (index >= json.Length) return null;
+            
+            char c = json[index];
+            
+            if (c == '"')
+                return ParseJsonString(json, ref index);
+            if (c == '{')
+                return ParseJsonObject(json, ref index);
+            if (c == '[')
+                return ParseJsonArrayInternal(json, ref index);
+            if (c == 't' && json.Substring(index, 4) == "true")
+            {
+                index += 4;
+                return true;
+            }
+            if (c == 'f' && json.Substring(index, 5) == "false")
+            {
+                index += 5;
+                return false;
+            }
+            if (c == 'n' && json.Substring(index, 4) == "null")
+            {
+                index += 4;
+                return null;
+            }
+            
+            // Number
+            int start = index;
+            while (index < json.Length && (char.IsDigit(json[index]) || json[index] == '.' || json[index] == '-' || json[index] == '+' || json[index] == 'e' || json[index] == 'E'))
+                index++;
+            
+            var numStr = json.Substring(start, index - start);
+            if (numStr.Contains(".") || numStr.Contains("e") || numStr.Contains("E"))
+            {
+                if (float.TryParse(numStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
+                    return f;
+            }
+            else
+            {
+                if (int.TryParse(numStr, out var i))
+                    return i;
+            }
+            
+            return numStr;
+        }
+        
+        private string ParseJsonString(string json, ref int index)
+        {
+            // Skip opening quote
+            while (index < json.Length && json[index] != '"')
+                index++;
+            index++;
+            
+            var sb = new StringBuilder();
+            while (index < json.Length)
+            {
+                char c = json[index];
+                if (c == '"')
+                {
+                    index++;
+                    break;
+                }
+                if (c == '\\' && index + 1 < json.Length)
+                {
+                    index++;
+                    char escaped = json[index];
+                    switch (escaped)
+                    {
+                        case 'n': sb.Append('\n'); break;
+                        case 't': sb.Append('\t'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case '"': sb.Append('"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        default: sb.Append(escaped); break;
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+                index++;
+            }
+            
+            return sb.ToString();
         }
         
         private string GetString(Dictionary<string, object> p, string key, string defaultValue)
@@ -3462,10 +3606,18 @@ namespace OpenClaw.Unity
                         commands.Add(cmdDict);
                 }
             }
+            else if (commandsObj is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var cmd in enumerable)
+                {
+                    if (cmd is Dictionary<string, object> cmdDict)
+                        commands.Add(cmdDict);
+                }
+            }
             
             if (commands.Count == 0)
             {
-                return new { success = false, error = "No valid commands found in 'commands' array" };
+                return new { success = false, error = $"No valid commands found. Got type: {commandsObj?.GetType().Name ?? "null"}" };
             }
             
             var stopOnError = GetBool(p, "stopOnError", false);
