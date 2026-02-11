@@ -66,6 +66,15 @@ Claude Code/Desktop → MCP Server → Unity Plugin
 | **Unity** | 2021.3+ |
 | **OpenClaw** | 2026.2.3+ |
 
+> ⚠️ **Unity 6000.3 (Unity 6.3 LTS)에서만 테스트되었습니다.**
+> 
+> Unity 2021.3+ 용으로 설계되었지만, Unity 6000.3.7f1 (Unity 6.3 LTS)에서만 테스트되었습니다.
+> 다른 Unity 버전에서 문제가 발생하면:
+> - 🐛 [Issue 등록](https://github.com/TomLeeLive/openclaw-unity-plugin/issues) - Unity 버전과 에러 내용 포함
+> - 🔧 [Pull Request 제출](https://github.com/TomLeeLive/openclaw-unity-plugin/pulls) - 수정사항이 있다면
+> 
+> 여러분의 기여가 모든 Unity 버전 지원에 도움이 됩니다!
+
 ## 설치
 
 ### 옵션 1: Git URL (권장)

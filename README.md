@@ -71,6 +71,15 @@ Claude Code/Desktop → MCP Server → Unity Plugin
 | **Unity** | 2021.3+ |
 | **OpenClaw** | 2026.2.3+ |
 
+> ⚠️ **Tested on Unity 6000.3 (Unity 6.3 LTS) only.**
+> 
+> While designed for Unity 2021.3+, this plugin has only been tested on Unity 6000.3.7f1 (Unity 6.3 LTS).
+> If you encounter issues on other Unity versions, please:
+> - 🐛 [Open an Issue](https://github.com/TomLeeLive/openclaw-unity-plugin/issues) with your Unity version and error details
+> - 🔧 [Submit a Pull Request](https://github.com/TomLeeLive/openclaw-unity-plugin/pulls) if you have a fix
+> 
+> Your contributions help make this plugin work across all Unity versions!
+
 ## Installation
 
 ### Option 1: Git URL (Recommended)
