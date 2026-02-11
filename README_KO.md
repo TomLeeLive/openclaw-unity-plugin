@@ -139,7 +139,7 @@ Skill 제공 내용:
 - **[개발 가이드](Documentation~/DEVELOPMENT.md)** - 아키텍처, 도구 확장, 기여 가이드라인
 - **[테스트 가이드](Documentation~/TESTING.md)** - 예제가 포함된 완전한 테스트 가이드
 
-## 사용 가능한 도구 (총 50개)
+## 사용 가능한 도구 (총 ~80개)
 
 ### Console (3개)
 | 도구 | 설명 |
@@ -190,7 +190,7 @@ Skill 제공 내용:
 ### Script (3개)
 | 도구 | 설명 |
 |------|------|
-| `script.execute` | 간단한 명령 실행 |
+| `script.execute` | 코드/메서드 실행 (Debug.Log, Time.timeScale, PlayerPrefs, 리플렉션 호출) |
 | `script.read` | 스크립트 파일 내용 읽기 |
 | `script.list` | 프로젝트의 스크립트 파일 목록 |
 
@@ -230,6 +230,50 @@ Skill 제공 내용:
 | `input.mouseScroll` | 스크롤 휠 |
 | `input.getMousePosition` | 현재 커서 위치 가져오기 |
 | `input.clickUI` | 이름으로 UI 요소 클릭 |
+
+### Material (5개) - v1.5.0 신규
+| 도구 | 설명 |
+|------|------|
+| `material.create` | 셰이더, 색상, 메탈릭, 매끄러움으로 머티리얼 생성 |
+| `material.assign` | GameObject에 머티리얼 할당 |
+| `material.modify` | 머티리얼 속성 수정 (색상, 메탈릭, 이미션 등) |
+| `material.getInfo` | 모든 셰이더 속성 포함 상세 머티리얼 정보 |
+| `material.list` | 프로젝트 내 머티리얼 목록 (필터링) |
+
+### Prefab (5개) - v1.5.0 신규
+| 도구 | 설명 |
+|------|------|
+| `prefab.create` | 씬 GameObject에서 프리팹 생성 |
+| `prefab.instantiate` | 씬에 프리팹 인스턴스화 (위치 지정) |
+| `prefab.open` | 프리팹 편집 모드 열기 |
+| `prefab.close` | 프리팹 편집 모드 닫기 |
+| `prefab.save` | 현재 편집 중인 프리팹 저장 |
+
+### Asset (7개) - v1.5.0 신규
+| 도구 | 설명 |
+|------|------|
+| `asset.find` | 쿼리, 타입, 폴더로 에셋 검색 |
+| `asset.copy` | 에셋을 새 경로로 복사 |
+| `asset.move` | 에셋 이동/이름 변경 |
+| `asset.delete` | 에셋 삭제 (휴지통 옵션) |
+| `asset.refresh` | AssetDatabase 새로고침 |
+| `asset.import` | 특정 에셋 임포트/재임포트 |
+| `asset.getPath` | 이름으로 에셋 경로 가져오기 |
+
+### Package Manager (4개) - v1.5.0 신규
+| 도구 | 설명 |
+|------|------|
+| `package.add` | 패키지 설치 (이름 또는 git URL) |
+| `package.remove` | 설치된 패키지 제거 |
+| `package.list` | 설치된 패키지 목록 |
+| `package.search` | Unity 패키지 레지스트리 검색 |
+
+### Test Runner (3개) - v1.5.0 신규
+| 도구 | 설명 |
+|------|------|
+| `test.run` | EditMode/PlayMode 테스트 실행 (필터링) |
+| `test.list` | 사용 가능한 테스트 목록 |
+| `test.getResults` | 마지막 테스트 실행 결과 가져오기 |
 
 ## 아키텍처
 
