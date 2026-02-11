@@ -16,6 +16,37 @@ Unity를 [OpenClaw](https://github.com/openclaw/openclaw) AI 어시스턴트와 
 
 전체 조항은 [LICENSE](LICENSE)를 참조하세요.
 
+## 🔀 하이브리드 아키텍처
+
+이 플러그인은 **두 가지 연결 모드**를 지원합니다 - 워크플로우에 맞게 선택하세요:
+
+### 모드 A: OpenClaw Gateway (원격 접속)
+```
+Telegram/Discord/Web → OpenClaw Gateway → Unity Plugin
+```
+- ✅ 어디서든 원격 접속
+- ✅ 채팅 통합 (Telegram, Discord 등)
+- ✅ 크론 작업, 자동화, 멀티 디바이스
+- ⚠️ OpenClaw Gateway 실행 필요
+
+### 모드 B: MCP 직접 연결 (로컬 개발)
+```
+Claude Code/Desktop → MCP Server → Unity Plugin
+```
+- ✅ 직접 연결, 미들웨어 불필요
+- ✅ Claude Code, Cursor 등과 바로 연동
+- ✅ 로컬 개발 시 낮은 지연시간
+- ⚠️ 로컬 전용 (127.0.0.1)
+
+### 빠른 설정
+
+| 모드 | 설정 방법 |
+|------|----------|
+| **OpenClaw** | 플러그인 설치만 하면 Gateway가 연결 처리 |
+| **MCP** | MCP Bridge 활성화: `Window > OpenClaw > Start MCP Bridge` |
+
+Claude Code 연동 상세는 [MCP~/README.md](MCP~/README.md) 참조.
+
 ## ✨ 주요 기능
 
 - 🎮 **Editor & Play 모드 모두 지원** - AI 도구 사용에 Play 버튼 불필요

@@ -21,6 +21,37 @@ This software is in **beta**. Use at your own risk.
 
 See [LICENSE](LICENSE) for full terms.
 
+## 🔀 Hybrid Architecture
+
+This plugin supports **two connection modes** - use whichever fits your workflow:
+
+### Mode A: OpenClaw Gateway (Remote Access)
+```
+Telegram/Discord/Web → OpenClaw Gateway → Unity Plugin
+```
+- ✅ Remote access from anywhere
+- ✅ Chat integration (Telegram, Discord, etc.)
+- ✅ Cron jobs, automation, multi-device
+- ⚠️ Requires OpenClaw Gateway running
+
+### Mode B: MCP Direct (Local Development)
+```
+Claude Code/Desktop → MCP Server → Unity Plugin
+```
+- ✅ Direct connection, no middleware
+- ✅ Works with Claude Code, Cursor, etc.
+- ✅ Lower latency for local development
+- ⚠️ Local only (127.0.0.1)
+
+### Quick Setup
+
+| Mode | Setup |
+|------|-------|
+| **OpenClaw** | Just install plugin, Gateway handles connection |
+| **MCP** | Enable MCP Bridge: `Window > OpenClaw > Start MCP Bridge` |
+
+See [MCP~/README.md](MCP~/README.md) for Claude Code integration details.
+
 ## ✨ Key Features
 
 - 🎮 **Works in Editor & Play Mode** - No need to hit Play to use AI tools

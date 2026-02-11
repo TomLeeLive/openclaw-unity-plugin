@@ -45,6 +45,13 @@ namespace OpenClaw.Unity
         [Tooltip("Log level to capture")]
         public LogLevel minLogLevel = LogLevel.Warning;
         
+        [Header("MCP Bridge (Direct Connection)")]
+        [Tooltip("Enable MCP Bridge for direct Claude Code integration")]
+        public bool enableMCPBridge = false;
+        
+        [Tooltip("MCP Bridge port (default: 27182)")]
+        public int mcpBridgePort = 27182;
+        
         [Header("Security")]
         [Tooltip("Allow code execution via AI (DANGEROUS - use only in development)")]
         public bool allowCodeExecution = true;
@@ -71,15 +78,21 @@ namespace OpenClaw.Unity
             {
                 if (_instance == null)
                 {
-                    _instance = Resources.Load<OpenClawConfig>("OpenClawConfig");
-                    if (_instance == null)
-                    {
-                        Debug.LogWarning("[OpenClaw] Config not found in Resources. Using defaults.");
-                        _instance = CreateInstance<OpenClawConfig>();
-                    }
+                    _instance = Load();
                 }
                 return _instance;
             }
+        }
+        
+        public static OpenClawConfig Load()
+        {
+            var config = Resources.Load<OpenClawConfig>("OpenClawConfig");
+            if (config == null)
+            {
+                Debug.LogWarning("[OpenClaw] Config not found in Resources. Using defaults.");
+                config = CreateInstance<OpenClawConfig>();
+            }
+            return config;
         }
         
         public string GetFullUrl(string endpoint)
