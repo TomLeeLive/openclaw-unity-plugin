@@ -3056,7 +3056,7 @@ namespace OpenClaw.Unity
             try
             {
                 // Create TestRunnerApi instance via reflection
-                var apiInstance = UnityEditor.ScriptableObject.CreateInstance(_testRunnerApiType);
+                var apiInstance = ScriptableObject.CreateInstance(_testRunnerApiType);
                 
                 // Get TestMode enum value
                 var testModeValue = Enum.Parse(_testModeType, mode.ToLower() == "playmode" ? "PlayMode" : "EditMode");
