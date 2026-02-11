@@ -139,7 +139,7 @@ Skill 제공 내용:
 - **[개발 가이드](Documentation~/DEVELOPMENT.md)** - 아키텍처, 도구 확장, 기여 가이드라인
 - **[테스트 가이드](Documentation~/TESTING.md)** - 예제가 포함된 완전한 테스트 가이드
 
-## 사용 가능한 도구 (총 ~80개)
+## 사용 가능한 도구 (총 ~100개)
 
 ### Console (3개)
 | 도구 | 설명 |
@@ -274,6 +274,101 @@ Skill 제공 내용:
 | `test.run` | EditMode/PlayMode 테스트 실행 (필터링) |
 | `test.list` | 사용 가능한 테스트 목록 |
 | `test.getResults` | 마지막 테스트 실행 결과 가져오기 |
+
+### Batch Execution (1개) - v1.6.0 신규
+| 도구 | 설명 |
+|------|------|
+| `batch.execute` | 다중 도구 일괄 실행 (10-100x 성능 향상) |
+
+**예제:**
+```json
+{
+  "commands": [
+    { "tool": "scene.getActive", "params": {} },
+    { "tool": "gameobject.find", "params": { "name": "Player" } },
+    { "tool": "debug.screenshot", "params": {} }
+  ],
+  "stopOnError": false
+}
+```
+
+### Session Info (1개) - v1.6.0 신규
+| 도구 | 설명 |
+|------|------|
+| `session.getInfo` | 세션 정보 (프로젝트, processId, machineName) - 멀티 인스턴스 지원 |
+
+### ScriptableObject (6개) - v1.6.0 신규
+| 도구 | 설명 |
+|------|------|
+| `scriptableobject.create` | 새 ScriptableObject 에셋 생성 |
+| `scriptableobject.load` | ScriptableObject 필드 로드 및 검사 |
+| `scriptableobject.save` | ScriptableObject 변경사항 저장 |
+| `scriptableobject.getField` | 특정 필드 값 가져오기 |
+| `scriptableobject.setField` | 필드 값 설정 (자동 저장) |
+| `scriptableobject.list` | 프로젝트의 ScriptableObject 목록 |
+
+### Shader (3개) - v1.6.0 신규
+| 도구 | 설명 |
+|------|------|
+| `shader.list` | 프로젝트의 셰이더 목록 |
+| `shader.getInfo` | 셰이더 속성 및 정보 |
+| `shader.getKeywords` | 셰이더 키워드 가져오기 |
+
+### Texture (5개) - v1.6.0 신규
+| 도구 | 설명 |
+|------|------|
+| `texture.create` | 색상 채움으로 새 텍스처 생성 |
+| `texture.getInfo` | 텍스처 정보 (크기, 포맷, 임포트 설정) |
+| `texture.setPixels` | 영역 색상 채우기 |
+| `texture.resize` | 임포트 설정으로 텍스처 크기 조정 |
+| `texture.list` | 프로젝트의 텍스처 목록 |
+
+## 🔧 커스텀 도구 API - v1.6.0 신규
+
+프로젝트별 커스텀 도구를 등록하여 OpenClaw 기능을 확장할 수 있습니다:
+
+```csharp
+using OpenClaw.Unity;
+
+// 게임 코드에서
+OpenClawCustomTools.Register(new CustomTool
+{
+    Name = "mygame.spawnEnemy",
+    Description = "지정 위치에 적 스폰",
+    Execute = (args) => {
+        var x = args.TryGetValue("x", out var xv) ? Convert.ToSingle(xv) : 0;
+        var y = args.TryGetValue("y", out var yv) ? Convert.ToSingle(yv) : 0;
+        var z = args.TryGetValue("z", out var zv) ? Convert.ToSingle(zv) : 0;
+        
+        // 스폰 로직
+        var enemy = EnemyManager.Spawn(new Vector3(x, y, z));
+        
+        return new { success = true, spawned = enemy.name, position = new { x, y, z } };
+    }
+});
+
+// 간단한 등록 방법
+OpenClawCustomTools.Register(
+    "mygame.getScore",
+    "현재 점수 가져오기",
+    (args) => new { success = true, score = GameManager.Score }
+);
+```
+
+## 📦 MCP Resources - v1.6.0 신규
+
+MCP 프로토콜의 Resources 기능을 지원합니다. 다음 리소스에 접근 가능:
+
+| URI | 설명 |
+|-----|------|
+| `unity://scene/hierarchy` | 현재 씬 하이어라키 |
+| `unity://scene/active` | 활성 씬 정보 |
+| `unity://project/scripts` | 프로젝트 스크립트 목록 |
+| `unity://project/scenes` | 빌드 설정 씬 목록 |
+| `unity://project/assets?query=Player&type=Prefab` | 에셋 검색 |
+| `unity://editor/state` | 에디터 상태 |
+| `unity://console/logs` | 콘솔 로그 |
+| `unity://session/info` | 세션 정보 |
 
 ## 아키텍처
 

@@ -173,22 +173,43 @@ namespace OpenClaw.Unity
         
         public List<Dictionary<string, object>> GetToolList()
         {
-            return _tools.Keys.Select(name => new Dictionary<string, object>
+            var tools = _tools.Keys.Select(name => new Dictionary<string, object>
             {
                 { "name", name },
                 { "description", GetToolDescription(name) }
             }).ToList();
+            
+            // Add custom tools
+            foreach (var customTool in OpenClawCustomTools.GetAll())
+            {
+                tools.Add(new Dictionary<string, object>
+                {
+                    { "name", customTool.Name },
+                    { "description", customTool.Description ?? customTool.Name },
+                    { "custom", true }
+                });
+            }
+            
+            return tools;
         }
         
         public object Execute(string toolName, string parametersJson)
         {
-            if (!_tools.TryGetValue(toolName, out var tool))
+            var parameters = ParseJson(parametersJson);
+            
+            // Check built-in tools first
+            if (_tools.TryGetValue(toolName, out var tool))
             {
-                throw new ArgumentException($"Unknown tool: {toolName}");
+                return tool(parameters);
             }
             
-            var parameters = ParseJson(parametersJson);
-            return tool(parameters);
+            // Check custom tools
+            if (OpenClawCustomTools.IsRegistered(toolName))
+            {
+                return OpenClawCustomTools.Execute(toolName, parameters);
+            }
+            
+            throw new ArgumentException($"Unknown tool: {toolName}");
         }
         
         #region Console Tools

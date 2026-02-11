@@ -3,11 +3,12 @@
  * OpenClaw Unity MCP Server
  * Bridges MCP protocol to Unity Plugin via HTTP
  * 
+ * Features:
+ * - Tools: Execute Unity commands
+ * - Resources: Access Unity project data
+ * 
  * Usage with Claude Code:
  *   claude mcp add unity -- node /path/to/MCP~/index.js
- * 
- * Or in claude_desktop_config.json:
- *   { "mcpServers": { "unity": { "command": "node", "args": ["/path/to/MCP~/index.js"] } } }
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -15,76 +16,60 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
 const UNITY_HOST = process.env.UNITY_HOST || '127.0.0.1';
 const UNITY_PORT = process.env.UNITY_PORT || 27182;
 const UNITY_URL = `http://${UNITY_HOST}:${UNITY_PORT}`;
 
-// Tool definitions - mirrors Unity plugin tools
-const TOOLS = [
-  // Scene tools
-  { name: 'scene.getData', description: 'Get current scene info and hierarchy', inputSchema: { type: 'object', properties: {} } },
-  { name: 'scene.list', description: 'List all scenes in build settings', inputSchema: { type: 'object', properties: {} } },
-  { name: 'scene.load', description: 'Load a scene by name or index', inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number' }, mode: { type: 'string', enum: ['Single', 'Additive'] } } } },
-  { name: 'scene.save', description: 'Save the current scene', inputSchema: { type: 'object', properties: {} } },
-  { name: 'scene.saveAll', description: 'Save all open scenes', inputSchema: { type: 'object', properties: {} } },
-  
-  // GameObject tools
-  { name: 'gameobject.find', description: 'Find GameObject by name or path', inputSchema: { type: 'object', properties: { name: { type: 'string' }, path: { type: 'string' } }, required: [] } },
-  { name: 'gameobject.create', description: 'Create a new GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, type: { type: 'string' }, parent: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } } } },
-  { name: 'gameobject.delete', description: 'Delete a GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
-  { name: 'gameobject.setActive', description: 'Enable/disable a GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, active: { type: 'boolean' } }, required: ['name', 'active'] } },
-  
-  // Transform tools
-  { name: 'transform.getPosition', description: 'Get GameObject position', inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
-  { name: 'transform.setPosition', description: 'Set GameObject position', inputSchema: { type: 'object', properties: { name: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['name'] } },
-  { name: 'transform.getRotation', description: 'Get GameObject rotation', inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
-  { name: 'transform.setRotation', description: 'Set GameObject rotation', inputSchema: { type: 'object', properties: { name: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['name'] } },
-  { name: 'transform.getScale', description: 'Get GameObject scale', inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
-  { name: 'transform.setScale', description: 'Set GameObject scale', inputSchema: { type: 'object', properties: { name: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['name'] } },
-  
-  // Component tools
-  { name: 'component.get', description: 'Get component data from GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, component: { type: 'string' } }, required: ['name'] } },
-  { name: 'component.add', description: 'Add component to GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, component: { type: 'string' } }, required: ['name', 'component'] } },
-  { name: 'component.remove', description: 'Remove component from GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, component: { type: 'string' } }, required: ['name', 'component'] } },
-  { name: 'component.setProperty', description: 'Set component property value', inputSchema: { type: 'object', properties: { name: { type: 'string' }, component: { type: 'string' }, property: { type: 'string' }, value: {} }, required: ['name', 'component', 'property', 'value'] } },
-  
-  // Debug tools
-  { name: 'debug.hierarchy', description: 'Get scene hierarchy tree', inputSchema: { type: 'object', properties: { depth: { type: 'number' } } } },
-  { name: 'debug.screenshot', description: 'Capture screenshot', inputSchema: { type: 'object', properties: { filename: { type: 'string' }, method: { type: 'string', enum: ['gameview', 'screencapture'] } } } },
-  { name: 'debug.log', description: 'Write to Unity console', inputSchema: { type: 'object', properties: { message: { type: 'string' }, level: { type: 'string', enum: ['info', 'warning', 'error'] } }, required: ['message'] } },
-  
-  // Console tools
-  { name: 'console.getLogs', description: 'Get Unity console logs', inputSchema: { type: 'object', properties: { count: { type: 'number' }, filter: { type: 'string' } } } },
-  { name: 'console.clear', description: 'Clear Unity console', inputSchema: { type: 'object', properties: {} } },
-  
-  // Editor tools
+// Dynamic tool list - fetched from Unity
+let cachedTools = [];
+
+// Fetch tools from Unity
+async function fetchUnityTools() {
+  try {
+    const response = await fetch(`${UNITY_URL}/tools`);
+    if (response.ok) {
+      const data = await response.json();
+      cachedTools = (data.tools || []).map(t => ({
+        name: t.name,
+        description: t.description || t.name,
+        inputSchema: { type: 'object', properties: {} }
+      }));
+    }
+  } catch (e) {
+    // Use fallback if Unity not connected
+  }
+  return cachedTools;
+}
+
+// Fallback tools if Unity not connected
+const FALLBACK_TOOLS = [
+  { name: 'scene.getData', description: 'Get current scene hierarchy', inputSchema: { type: 'object', properties: { depth: { type: 'number' } } } },
+  { name: 'scene.getActive', description: 'Get active scene info', inputSchema: { type: 'object', properties: {} } },
+  { name: 'gameobject.find', description: 'Find GameObject by name', inputSchema: { type: 'object', properties: { name: { type: 'string' } } } },
+  { name: 'gameobject.create', description: 'Create GameObject', inputSchema: { type: 'object', properties: { name: { type: 'string' }, primitive: { type: 'string' } } } },
+  { name: 'transform.setPosition', description: 'Set position', inputSchema: { type: 'object', properties: { name: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } } } },
+  { name: 'debug.hierarchy', description: 'Get hierarchy tree', inputSchema: { type: 'object', properties: { depth: { type: 'number' } } } },
+  { name: 'debug.screenshot', description: 'Capture screenshot', inputSchema: { type: 'object', properties: {} } },
   { name: 'editor.play', description: 'Enter Play mode', inputSchema: { type: 'object', properties: {} } },
   { name: 'editor.stop', description: 'Exit Play mode', inputSchema: { type: 'object', properties: {} } },
-  { name: 'editor.pause', description: 'Pause Play mode', inputSchema: { type: 'object', properties: {} } },
-  { name: 'editor.unpause', description: 'Unpause Play mode', inputSchema: { type: 'object', properties: {} } },
-  { name: 'editor.getState', description: 'Get editor state (playing/paused)', inputSchema: { type: 'object', properties: {} } },
-  { name: 'editor.recompile', description: 'Trigger script recompilation', inputSchema: { type: 'object', properties: {} } },
-  
-  // Input simulation
-  { name: 'input.simulateKey', description: 'Simulate keyboard input', inputSchema: { type: 'object', properties: { key: { type: 'string' }, action: { type: 'string', enum: ['press', 'down', 'up'] }, duration: { type: 'number' } }, required: ['key'] } },
-  { name: 'input.simulateMouse', description: 'Simulate mouse input', inputSchema: { type: 'object', properties: { button: { type: 'string' }, action: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' } } } },
-  
-  // Selection
-  { name: 'selection.get', description: 'Get currently selected objects', inputSchema: { type: 'object', properties: {} } },
-  { name: 'selection.set', description: 'Set selected objects', inputSchema: { type: 'object', properties: { names: { type: 'array', items: { type: 'string' } } }, required: ['names'] } },
-  
-  // Asset tools
-  { name: 'asset.list', description: 'List assets in path', inputSchema: { type: 'object', properties: { path: { type: 'string' }, filter: { type: 'string' } } } },
-  { name: 'asset.refresh', description: 'Refresh asset database', inputSchema: { type: 'object', properties: {} } },
+  { name: 'batch.execute', description: 'Execute multiple tools in one call', inputSchema: { type: 'object', properties: { commands: { type: 'array' }, stopOnError: { type: 'boolean' } } } },
+  { name: 'session.getInfo', description: 'Get session info', inputSchema: { type: 'object', properties: {} } },
 ];
 
 class UnityMCPServer {
   constructor() {
     this.server = new Server(
-      { name: 'openclaw-unity', version: '1.0.0' },
-      { capabilities: { tools: {} } }
+      { name: 'openclaw-unity', version: '1.6.0' },
+      { 
+        capabilities: { 
+          tools: {},
+          resources: {}  // Enable resources
+        } 
+      }
     );
     
     this.setupHandlers();
@@ -92,9 +77,10 @@ class UnityMCPServer {
   
   setupHandlers() {
     // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: TOOLS
-    }));
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const tools = await fetchUnityTools();
+      return { tools: tools.length > 0 ? tools : FALLBACK_TOOLS };
+    });
     
     // Execute tool
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -112,6 +98,111 @@ class UnityMCPServer {
         };
       }
     });
+    
+    // List resources
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return {
+        resources: [
+          {
+            uri: 'unity://scene/hierarchy',
+            name: 'Scene Hierarchy',
+            description: 'Current scene hierarchy tree',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://scene/active',
+            name: 'Active Scene',
+            description: 'Active scene information',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://project/scripts',
+            name: 'Project Scripts',
+            description: 'List of C# scripts in project',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://project/scenes',
+            name: 'Project Scenes',
+            description: 'List of scenes in build settings',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://project/assets',
+            name: 'Project Assets',
+            description: 'Asset search (use ?query=name&type=Prefab)',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://editor/state',
+            name: 'Editor State',
+            description: 'Editor state (play mode, paused, etc.)',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://console/logs',
+            name: 'Console Logs',
+            description: 'Recent Unity console logs',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'unity://session/info',
+            name: 'Session Info',
+            description: 'Current Unity session info',
+            mimeType: 'application/json'
+          }
+        ]
+      };
+    });
+    
+    // Read resource
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const { uri } = request.params;
+      
+      try {
+        const data = await this.readResource(uri);
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: JSON.stringify(data, null, 2)
+          }]
+        };
+      } catch (error) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: JSON.stringify({ error: error.message })
+          }]
+        };
+      }
+    });
+  }
+  
+  async readResource(uri) {
+    const url = new URL(uri);
+    const path = url.pathname;
+    const params = Object.fromEntries(url.searchParams);
+    
+    // Map resource URIs to Unity tools
+    const resourceMap = {
+      '/scene/hierarchy': { tool: 'debug.hierarchy', params: { depth: 3 } },
+      '/scene/active': { tool: 'scene.getActive', params: {} },
+      '/project/scripts': { tool: 'script.list', params: {} },
+      '/project/scenes': { tool: 'scene.list', params: {} },
+      '/project/assets': { tool: 'asset.find', params: { query: params.query || '', type: params.type || '' } },
+      '/editor/state': { tool: 'app.getState', params: {} },
+      '/console/logs': { tool: 'console.getLogs', params: { count: parseInt(params.count) || 50 } },
+      '/session/info': { tool: 'session.getInfo', params: {} },
+    };
+    
+    const mapping = resourceMap[path];
+    if (!mapping) {
+      throw new Error(`Unknown resource: ${uri}`);
+    }
+    
+    return await this.executeUnityTool(mapping.tool, { ...mapping.params, ...params });
   }
   
   async executeUnityTool(tool, args) {
@@ -133,7 +224,7 @@ class UnityMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('[OpenClaw Unity MCP] Server started');
+    console.error('[OpenClaw Unity MCP] Server started (v1.6.0 with Resources)');
   }
 }
 
