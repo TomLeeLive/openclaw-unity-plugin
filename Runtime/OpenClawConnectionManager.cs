@@ -598,25 +598,69 @@ namespace OpenClaw.Unity
             {
                 sb.Append(value);
             }
-            else if (value is List<Dictionary<string, object>> list)
-            {
-                sb.Append("[");
-                bool first = true;
-                foreach (var item in list)
-                {
-                    if (!first) sb.Append(",");
-                    first = false;
-                    sb.Append(DictionaryToJson(item));
-                }
-                sb.Append("]");
-            }
             else if (value is Dictionary<string, object> dict)
             {
                 sb.Append(DictionaryToJson(dict));
             }
+            else if (value is System.Collections.IList ilist)
+            {
+                // Handle any IList including List<Dictionary<...>>
+                sb.Append("[");
+                bool first = true;
+                foreach (var item in ilist)
+                {
+                    if (!first) sb.Append(",");
+                    first = false;
+                    AppendValue(sb, item);
+                }
+                sb.Append("]");
+            }
+            else if (value is System.Collections.IDictionary idict)
+            {
+                // Handle any IDictionary
+                sb.Append("{");
+                bool first = true;
+                foreach (System.Collections.DictionaryEntry entry in idict)
+                {
+                    if (!first) sb.Append(",");
+                    first = false;
+                    sb.Append($"\"{EscapeString(entry.Key.ToString())}\":");
+                    AppendValue(sb, entry.Value);
+                }
+                sb.Append("}");
+            }
             else
             {
-                sb.Append($"\"{EscapeString(value.ToString())}\"");
+                // Handle anonymous types and other objects via reflection
+                var type = value.GetType();
+                
+                // Check if it's an anonymous type or has properties to serialize
+                var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (props.Length > 0 && (type.Name.Contains("AnonymousType") || type.IsClass))
+                {
+                    sb.Append("{");
+                    bool first = true;
+                    foreach (var prop in props)
+                    {
+                        try
+                        {
+                            var propValue = prop.GetValue(value);
+                            if (!first) sb.Append(",");
+                            first = false;
+                            sb.Append($"\"{prop.Name}\":");
+                            AppendValue(sb, propValue);
+                        }
+                        catch
+                        {
+                            // Skip properties that can't be read
+                        }
+                    }
+                    sb.Append("}");
+                }
+                else
+                {
+                    sb.Append($"\"{EscapeString(value.ToString())}\"");
+                }
             }
         }
         
