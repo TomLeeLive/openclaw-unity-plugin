@@ -45,7 +45,7 @@ Claude Code/Desktop → MCP Server → Unity Plugin
 | **OpenClaw** | 플러그인 설치만 하면 Gateway가 연결 처리 |
 | **MCP** | MCP Bridge 활성화: `Window > OpenClaw > Start MCP Bridge` |
 
-Claude Code 연동 상세는 [MCP~/README.md](MCP~/README.md) 참조.
+📖 **[Setup Guide](Documentation~/SETUP_GUIDE.md)** | **[셋업 가이드](Documentation~/SETUP_GUIDE_KO.md)**
 
 ## ✨ 주요 기능
 
