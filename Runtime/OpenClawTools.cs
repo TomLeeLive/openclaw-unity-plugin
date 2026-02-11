@@ -96,6 +96,40 @@ namespace OpenClaw.Unity
                 { "editor.pause", AppPause },       // Alias for MCP compatibility
                 { "editor.unpause", AppPlay },      // Alias for MCP compatibility (resume = play)
                 
+                // Material
+                { "material.create", MaterialCreate },
+                { "material.assign", MaterialAssign },
+                { "material.modify", MaterialModify },
+                { "material.getInfo", MaterialGetInfo },
+                { "material.list", MaterialList },
+                
+                // Prefab
+                { "prefab.create", PrefabCreate },
+                { "prefab.instantiate", PrefabInstantiate },
+                { "prefab.open", PrefabOpen },
+                { "prefab.close", PrefabClose },
+                { "prefab.save", PrefabSave },
+                
+                // Asset
+                { "asset.find", AssetFind },
+                { "asset.copy", AssetCopy },
+                { "asset.move", AssetMove },
+                { "asset.delete", AssetDelete },
+                { "asset.refresh", AssetRefresh },
+                { "asset.import", AssetImport },
+                { "asset.getPath", AssetGetPath },
+                
+                // Package Manager
+                { "package.add", PackageAdd },
+                { "package.remove", PackageRemove },
+                { "package.list", PackageList },
+                { "package.search", PackageSearch },
+                
+                // Test Runner
+                { "test.run", TestRun },
+                { "test.list", TestList },
+                { "test.getResults", TestGetResults },
+                
                 // Input (for game testing)
                 { "input.keyPress", InputKeyPress },
                 { "input.keyDown", InputKeyDown },
@@ -944,33 +978,255 @@ namespace OpenClaw.Unity
             }
             
             var code = GetString(p, "code", null);
-            if (string.IsNullOrEmpty(code))
-            {
-                return new { success = false, error = "No code provided" };
-            }
+            var methodCall = GetString(p, "method", null);
+            var targetName = GetString(p, "target", null);
+            var typeName = GetString(p, "type", null);
+            var argsJson = GetString(p, "args", null);
             
-            // Note: Full C# execution requires Roslyn or similar
-            // For now, we support simple eval-style operations
             try
             {
-                // Try to interpret as a simple command
-                if (code.StartsWith("Debug.Log("))
+                // Method 1: Direct method call via reflection (more reliable)
+                if (!string.IsNullOrEmpty(methodCall))
                 {
-                    var msg = code.Substring(10, code.Length - 12);
-                    Debug.Log(msg);
-                    return new { success = true, output = msg };
+                    return ExecuteMethodCall(targetName, typeName, methodCall, argsJson);
                 }
                 
-                return new { 
-                    success = false, 
-                    error = "Dynamic code execution requires Roslyn. Use tools instead.",
-                    suggestion = "Use gameobject.*, component.*, or other tools for Unity operations."
-                };
+                // Method 2: Simple code interpretation
+                if (!string.IsNullOrEmpty(code))
+                {
+                    return ExecuteSimpleCode(code);
+                }
+                
+                return new { success = false, error = "Provide 'code' or 'method' parameter" };
             }
             catch (Exception e)
             {
-                return new { success = false, error = e.Message };
+                return new { success = false, error = e.Message, stackTrace = e.StackTrace };
             }
+        }
+        
+        private object ExecuteMethodCall(string targetName, string typeName, string methodName, string argsJson)
+        {
+            object target = null;
+            Type type = null;
+            
+            // Find target object
+            if (!string.IsNullOrEmpty(targetName))
+            {
+                var go = GameObject.Find(targetName);
+                if (go != null)
+                {
+                    if (!string.IsNullOrEmpty(typeName))
+                    {
+                        type = FindType(typeName);
+                        target = go.GetComponent(type);
+                    }
+                    else
+                    {
+                        target = go;
+                        type = typeof(GameObject);
+                    }
+                }
+            }
+            else if (!string.IsNullOrEmpty(typeName))
+            {
+                // Static method call
+                type = FindType(typeName);
+            }
+            
+            if (type == null)
+            {
+                return new { success = false, error = $"Type not found: {typeName}" };
+            }
+            
+            // Find method
+            var method = type.GetMethod(methodName, 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            
+            if (method == null)
+            {
+                // Try to find without case sensitivity
+                method = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            if (method == null)
+            {
+                return new { success = false, error = $"Method '{methodName}' not found on type '{type.Name}'" };
+            }
+            
+            // Parse arguments
+            object[] args = null;
+            if (!string.IsNullOrEmpty(argsJson))
+            {
+                var argsList = ParseJsonArray(argsJson);
+                var parameters = method.GetParameters();
+                args = new object[parameters.Length];
+                
+                for (int i = 0; i < parameters.Length && i < argsList.Count; i++)
+                {
+                    args[i] = ConvertValue(argsList[i], parameters[i].ParameterType);
+                }
+            }
+            
+            // Invoke
+            var result = method.Invoke(target, args);
+            
+            return new { 
+                success = true, 
+                method = methodName, 
+                type = type.Name,
+                result = SerializeValue(result)
+            };
+        }
+        
+        private object ExecuteSimpleCode(string code)
+        {
+            code = code.Trim();
+            
+            // Debug.Log
+            if (code.StartsWith("Debug.Log(") && code.EndsWith(");"))
+            {
+                var msg = code.Substring(10, code.Length - 12).Trim().Trim('"');
+                Debug.Log(msg);
+                return new { success = true, output = msg, executed = "Debug.Log" };
+            }
+            
+            // Debug.LogWarning
+            if (code.StartsWith("Debug.LogWarning(") && code.EndsWith(");"))
+            {
+                var msg = code.Substring(17, code.Length - 19).Trim().Trim('"');
+                Debug.LogWarning(msg);
+                return new { success = true, output = msg, executed = "Debug.LogWarning" };
+            }
+            
+            // Debug.LogError
+            if (code.StartsWith("Debug.LogError(") && code.EndsWith(");"))
+            {
+                var msg = code.Substring(15, code.Length - 17).Trim().Trim('"');
+                Debug.LogError(msg);
+                return new { success = true, output = msg, executed = "Debug.LogError" };
+            }
+            
+            // GameObject.Find().GetComponent<T>().method()
+            var goFindMatch = System.Text.RegularExpressions.Regex.Match(code, 
+                @"GameObject\.Find\(""([^""]+)""\)\.GetComponent<([^>]+)>\(\)\.(\w+)\((.*?)\);?");
+            if (goFindMatch.Success)
+            {
+                var goName = goFindMatch.Groups[1].Value;
+                var compType = goFindMatch.Groups[2].Value;
+                var method = goFindMatch.Groups[3].Value;
+                var args = goFindMatch.Groups[4].Value;
+                
+                return ExecuteMethodCall(goName, compType, method, $"[{args}]");
+            }
+            
+            // Time.timeScale = value
+            var timeScaleMatch = System.Text.RegularExpressions.Regex.Match(code, @"Time\.timeScale\s*=\s*([\d.]+);?");
+            if (timeScaleMatch.Success)
+            {
+                var value = float.Parse(timeScaleMatch.Groups[1].Value);
+                Time.timeScale = value;
+                return new { success = true, executed = "Time.timeScale", value = value };
+            }
+            
+            // Application.Quit()
+            if (code.Contains("Application.Quit()"))
+            {
+                #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+                return new { success = true, executed = "EditorApplication.isPlaying = false" };
+                #else
+                Application.Quit();
+                return new { success = true, executed = "Application.Quit" };
+                #endif
+            }
+            
+            // PlayerPrefs operations
+            var ppSetMatch = System.Text.RegularExpressions.Regex.Match(code, @"PlayerPrefs\.Set(\w+)\(""([^""]+)"",\s*(.+)\);?");
+            if (ppSetMatch.Success)
+            {
+                var ppType = ppSetMatch.Groups[1].Value;
+                var key = ppSetMatch.Groups[2].Value;
+                var value = ppSetMatch.Groups[3].Value.Trim().Trim('"');
+                
+                switch (ppType)
+                {
+                    case "Int":
+                        PlayerPrefs.SetInt(key, int.Parse(value));
+                        break;
+                    case "Float":
+                        PlayerPrefs.SetFloat(key, float.Parse(value));
+                        break;
+                    case "String":
+                        PlayerPrefs.SetString(key, value);
+                        break;
+                }
+                PlayerPrefs.Save();
+                return new { success = true, executed = $"PlayerPrefs.Set{ppType}", key = key, value = value };
+            }
+            
+            var ppGetMatch = System.Text.RegularExpressions.Regex.Match(code, @"PlayerPrefs\.Get(\w+)\(""([^""]+)""");
+            if (ppGetMatch.Success)
+            {
+                var ppType = ppGetMatch.Groups[1].Value;
+                var key = ppGetMatch.Groups[2].Value;
+                
+                object result = ppType switch
+                {
+                    "Int" => PlayerPrefs.GetInt(key),
+                    "Float" => PlayerPrefs.GetFloat(key),
+                    "String" => PlayerPrefs.GetString(key),
+                    _ => null
+                };
+                
+                return new { success = true, executed = $"PlayerPrefs.Get{ppType}", key = key, result = result };
+            }
+            
+            return new { 
+                success = false, 
+                error = "Unsupported code pattern. Use 'method' parameter for reflection-based execution.",
+                supported = new[] {
+                    "Debug.Log/LogWarning/LogError",
+                    "Time.timeScale = value",
+                    "PlayerPrefs.SetInt/Float/String",
+                    "PlayerPrefs.GetInt/Float/String",
+                    "Application.Quit()"
+                },
+                suggestion = "Use script.execute with method, target, type, args for complex operations"
+            };
+        }
+        
+        private List<object> ParseJsonArray(string json)
+        {
+            var result = new List<object>();
+            if (string.IsNullOrEmpty(json)) return result;
+            
+            json = json.Trim();
+            if (!json.StartsWith("[")) return result;
+            
+            json = json.Substring(1, json.Length - 2);
+            if (string.IsNullOrEmpty(json)) return result;
+            
+            // Simple split (doesn't handle nested objects)
+            foreach (var item in json.Split(','))
+            {
+                var value = item.Trim();
+                if (value.StartsWith("\"") && value.EndsWith("\""))
+                    result.Add(value.Trim('"'));
+                else if (value == "true")
+                    result.Add(true);
+                else if (value == "false")
+                    result.Add(false);
+                else if (value == "null")
+                    result.Add(null);
+                else if (float.TryParse(value, out var f))
+                    result.Add(f);
+                else
+                    result.Add(value);
+            }
+            
+            return result;
         }
         
         private object ScriptRead(Dictionary<string, object> p)
@@ -1887,6 +2143,1064 @@ namespace OpenClaw.Unity
         
         #endregion
         
+        #region Material Tools
+        
+        private object MaterialCreate(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var name = GetString(p, "name", "New Material");
+            var shaderName = GetString(p, "shader", "Standard");
+            var path = GetString(p, "path", $"Assets/{name}.mat");
+            var colorHex = GetString(p, "color", null);
+            
+            try
+            {
+                var shader = Shader.Find(shaderName);
+                if (shader == null)
+                {
+                    // Try common shader names
+                    var shaderAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "standard", "Standard" },
+                        { "unlit", "Unlit/Color" },
+                        { "urp", "Universal Render Pipeline/Lit" },
+                        { "urplit", "Universal Render Pipeline/Lit" },
+                        { "urpunlit", "Universal Render Pipeline/Unlit" },
+                        { "hdrp", "HDRP/Lit" },
+                        { "transparent", "Standard" }, // Will set rendering mode
+                    };
+                    
+                    if (shaderAliases.TryGetValue(shaderName, out var actualName))
+                    {
+                        shader = Shader.Find(actualName);
+                    }
+                }
+                
+                if (shader == null)
+                {
+                    return new { success = false, error = $"Shader '{shaderName}' not found" };
+                }
+                
+                var material = new Material(shader);
+                material.name = name;
+                
+                // Set color if provided
+                if (!string.IsNullOrEmpty(colorHex))
+                {
+                    if (ColorUtility.TryParseHtmlString(colorHex, out var color))
+                    {
+                        material.color = color;
+                    }
+                }
+                
+                // Set metallic/smoothness if provided
+                if (p.ContainsKey("metallic"))
+                {
+                    material.SetFloat("_Metallic", GetFloat(p, "metallic", 0f));
+                }
+                if (p.ContainsKey("smoothness"))
+                {
+                    material.SetFloat("_Glossiness", GetFloat(p, "smoothness", 0.5f));
+                }
+                
+                // Save asset
+                if (!path.EndsWith(".mat")) path += ".mat";
+                UnityEditor.AssetDatabase.CreateAsset(material, path);
+                UnityEditor.AssetDatabase.SaveAssets();
+                
+                return new { success = true, path = path, shader = shader.name, name = name };
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object MaterialAssign(Dictionary<string, object> p)
+        {
+            var targetName = GetString(p, "target", null);
+            var materialPath = GetString(p, "material", null);
+            var materialName = GetString(p, "materialName", null);
+            
+            var go = GameObject.Find(targetName);
+            if (go == null)
+            {
+                return new { success = false, error = $"GameObject '{targetName}' not found" };
+            }
+            
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer == null)
+            {
+                return new { success = false, error = $"No Renderer component on '{targetName}'" };
+            }
+            
+            Material mat = null;
+            
+            #if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(materialPath))
+            {
+                mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            }
+            else if (!string.IsNullOrEmpty(materialName))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"t:Material {materialName}");
+                if (guids.Length > 0)
+                {
+                    var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+                }
+            }
+            #endif
+            
+            if (mat == null)
+            {
+                return new { success = false, error = $"Material not found: {materialPath ?? materialName}" };
+            }
+            
+            renderer.material = mat;
+            return new { success = true, target = targetName, material = mat.name };
+        }
+        
+        private object MaterialModify(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            
+            Material mat = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"t:Material {name}");
+                if (guids.Length > 0)
+                {
+                    path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+                }
+            }
+            
+            if (mat == null)
+            {
+                return new { success = false, error = $"Material not found: {path ?? name}" };
+            }
+            
+            var modified = new List<string>();
+            
+            // Color
+            if (p.ContainsKey("color"))
+            {
+                var colorStr = GetString(p, "color", "#FFFFFF");
+                if (ColorUtility.TryParseHtmlString(colorStr, out var color))
+                {
+                    mat.color = color;
+                    modified.Add("color");
+                }
+            }
+            
+            // Metallic
+            if (p.ContainsKey("metallic"))
+            {
+                mat.SetFloat("_Metallic", GetFloat(p, "metallic", 0f));
+                modified.Add("metallic");
+            }
+            
+            // Smoothness/Glossiness
+            if (p.ContainsKey("smoothness"))
+            {
+                mat.SetFloat("_Glossiness", GetFloat(p, "smoothness", 0.5f));
+                modified.Add("smoothness");
+            }
+            
+            // Emission
+            if (p.ContainsKey("emission"))
+            {
+                var emissionStr = GetString(p, "emission", "#000000");
+                if (ColorUtility.TryParseHtmlString(emissionStr, out var emission))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", emission);
+                    modified.Add("emission");
+                }
+            }
+            
+            // Main texture tiling
+            if (p.ContainsKey("tilingX") || p.ContainsKey("tilingY"))
+            {
+                var tiling = mat.mainTextureScale;
+                tiling.x = GetFloat(p, "tilingX", tiling.x);
+                tiling.y = GetFloat(p, "tilingY", tiling.y);
+                mat.mainTextureScale = tiling;
+                modified.Add("tiling");
+            }
+            
+            UnityEditor.EditorUtility.SetDirty(mat);
+            UnityEditor.AssetDatabase.SaveAssets();
+            
+            return new { success = true, material = mat.name, modified = modified };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object MaterialGetInfo(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            
+            Material mat = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"t:Material {name}");
+                if (guids.Length > 0)
+                {
+                    path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+                }
+            }
+            
+            if (mat == null)
+            {
+                return new { success = false, error = $"Material not found: {path ?? name}" };
+            }
+            
+            var properties = new Dictionary<string, object>();
+            
+            // Basic properties
+            properties["color"] = ColorUtility.ToHtmlStringRGBA(mat.color);
+            properties["renderQueue"] = mat.renderQueue;
+            
+            // Get shader properties
+            var shader = mat.shader;
+            var propertyCount = shader.GetPropertyCount();
+            
+            for (int i = 0; i < propertyCount; i++)
+            {
+                var propName = shader.GetPropertyName(i);
+                var propType = shader.GetPropertyType(i);
+                
+                try
+                {
+                    switch (propType)
+                    {
+                        case UnityEngine.Rendering.ShaderPropertyType.Color:
+                            properties[propName] = ColorUtility.ToHtmlStringRGBA(mat.GetColor(propName));
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Float:
+                        case UnityEngine.Rendering.ShaderPropertyType.Range:
+                            properties[propName] = mat.GetFloat(propName);
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                            var v = mat.GetVector(propName);
+                            properties[propName] = new { x = v.x, y = v.y, z = v.z, w = v.w };
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                            var tex = mat.GetTexture(propName);
+                            properties[propName] = tex != null ? tex.name : null;
+                            break;
+                    }
+                }
+                catch { }
+            }
+            
+            return new { 
+                success = true, 
+                name = mat.name, 
+                path = path,
+                shader = shader.name,
+                properties = properties 
+            };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object MaterialList(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var folder = GetString(p, "folder", "Assets");
+            var filter = GetString(p, "filter", "");
+            var maxCount = GetInt(p, "maxCount", 100);
+            
+            var searchFilter = string.IsNullOrEmpty(filter) ? "t:Material" : $"t:Material {filter}";
+            var guids = UnityEditor.AssetDatabase.FindAssets(searchFilter, new[] { folder });
+            
+            var materials = new List<Dictionary<string, object>>();
+            
+            foreach (var guid in guids.Take(maxCount))
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (mat != null)
+                {
+                    materials.Add(new Dictionary<string, object>
+                    {
+                        { "name", mat.name },
+                        { "path", path },
+                        { "shader", mat.shader?.name ?? "Unknown" }
+                    });
+                }
+            }
+            
+            return new { success = true, count = materials.Count, materials = materials };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        #endregion
+        
+        #region Prefab Tools
+        
+        private object PrefabCreate(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var sourceName = GetString(p, "source", null);
+            var path = GetString(p, "path", null);
+            
+            var source = GameObject.Find(sourceName);
+            if (source == null)
+            {
+                return new { success = false, error = $"Source GameObject '{sourceName}' not found" };
+            }
+            
+            if (string.IsNullOrEmpty(path))
+            {
+                path = $"Assets/{source.name}.prefab";
+            }
+            if (!path.EndsWith(".prefab")) path += ".prefab";
+            
+            // Ensure directory exists
+            var dir = System.IO.Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+            {
+                System.IO.Directory.CreateDirectory(dir);
+            }
+            
+            var prefab = UnityEditor.PrefabUtility.SaveAsPrefabAsset(source, path);
+            
+            return new { 
+                success = prefab != null, 
+                path = path, 
+                name = prefab?.name,
+                error = prefab == null ? "Failed to create prefab" : null
+            };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PrefabInstantiate(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            var newName = GetString(p, "newName", null);
+            
+            GameObject prefab = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"t:Prefab {name}");
+                if (guids.Length > 0)
+                {
+                    path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                }
+            }
+            
+            if (prefab == null)
+            {
+                return new { success = false, error = $"Prefab not found: {path ?? name}" };
+            }
+            
+            var instance = UnityEditor.PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            
+            if (!string.IsNullOrEmpty(newName))
+            {
+                instance.name = newName;
+            }
+            
+            // Set position if provided
+            if (p.ContainsKey("x") || p.ContainsKey("y") || p.ContainsKey("z"))
+            {
+                instance.transform.position = new Vector3(
+                    GetFloat(p, "x", 0),
+                    GetFloat(p, "y", 0),
+                    GetFloat(p, "z", 0)
+                );
+            }
+            
+            return new { 
+                success = true, 
+                name = instance.name,
+                prefab = prefab.name,
+                position = Vec3ToDict(instance.transform.position)
+            };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PrefabOpen(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            
+            string prefabPath = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                prefabPath = path;
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"t:Prefab {name}");
+                if (guids.Length > 0)
+                {
+                    prefabPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                }
+            }
+            
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                return new { success = false, error = $"Prefab not found: {path ?? name}" };
+            }
+            
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null)
+            {
+                return new { success = false, error = $"Failed to load prefab at: {prefabPath}" };
+            }
+            
+            UnityEditor.AssetDatabase.OpenAsset(prefab);
+            
+            return new { success = true, path = prefabPath, name = prefab.name };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PrefabClose(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage == null)
+            {
+                return new { success = false, error = "No prefab is currently being edited" };
+            }
+            
+            var prefabName = stage.prefabContentsRoot?.name;
+            UnityEditor.SceneManagement.StageUtility.GoToMainStage();
+            
+            return new { success = true, closed = prefabName };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PrefabSave(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage == null)
+            {
+                return new { success = false, error = "No prefab is currently being edited" };
+            }
+            
+            var root = stage.prefabContentsRoot;
+            var path = stage.assetPath;
+            
+            UnityEditor.PrefabUtility.SaveAsPrefabAsset(root, path);
+            
+            return new { success = true, path = path, name = root.name };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        #endregion
+        
+        #region Asset Tools
+        
+        private object AssetFind(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var query = GetString(p, "query", "");
+            var type = GetString(p, "type", null);
+            var folder = GetString(p, "folder", "Assets");
+            var maxCount = GetInt(p, "maxCount", 100);
+            
+            var filter = string.IsNullOrEmpty(type) ? query : $"t:{type} {query}";
+            var guids = UnityEditor.AssetDatabase.FindAssets(filter, new[] { folder });
+            
+            var assets = new List<Dictionary<string, object>>();
+            
+            foreach (var guid in guids.Take(maxCount))
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var assetType = UnityEditor.AssetDatabase.GetMainAssetTypeAtPath(path);
+                
+                assets.Add(new Dictionary<string, object>
+                {
+                    { "path", path },
+                    { "name", System.IO.Path.GetFileNameWithoutExtension(path) },
+                    { "type", assetType?.Name ?? "Unknown" },
+                    { "guid", guid }
+                });
+            }
+            
+            return new { success = true, count = assets.Count, assets = assets };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetCopy(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var sourcePath = GetString(p, "source", null);
+            var destPath = GetString(p, "destination", null);
+            
+            if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(destPath))
+            {
+                return new { success = false, error = "Both source and destination paths required" };
+            }
+            
+            var result = UnityEditor.AssetDatabase.CopyAsset(sourcePath, destPath);
+            
+            return new { success = result, source = sourcePath, destination = destPath };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetMove(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var sourcePath = GetString(p, "source", null);
+            var destPath = GetString(p, "destination", null);
+            
+            if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(destPath))
+            {
+                return new { success = false, error = "Both source and destination paths required" };
+            }
+            
+            var error = UnityEditor.AssetDatabase.MoveAsset(sourcePath, destPath);
+            
+            return new { 
+                success = string.IsNullOrEmpty(error), 
+                source = sourcePath, 
+                destination = destPath,
+                error = string.IsNullOrEmpty(error) ? null : error
+            };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetDelete(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var moveToTrash = GetBool(p, "moveToTrash", true);
+            
+            if (string.IsNullOrEmpty(path))
+            {
+                return new { success = false, error = "Path required" };
+            }
+            
+            bool result;
+            if (moveToTrash)
+            {
+                result = UnityEditor.AssetDatabase.MoveAssetToTrash(path);
+            }
+            else
+            {
+                result = UnityEditor.AssetDatabase.DeleteAsset(path);
+            }
+            
+            return new { success = result, path = path, movedToTrash = moveToTrash && result };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetRefresh(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var importOptions = GetBool(p, "forceUpdate", false) 
+                ? UnityEditor.ImportAssetOptions.ForceUpdate 
+                : UnityEditor.ImportAssetOptions.Default;
+            
+            UnityEditor.AssetDatabase.Refresh(importOptions);
+            
+            return new { success = true, forceUpdate = GetBool(p, "forceUpdate", false) };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetImport(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var forceUpdate = GetBool(p, "forceUpdate", false);
+            
+            if (string.IsNullOrEmpty(path))
+            {
+                return new { success = false, error = "Path required" };
+            }
+            
+            var options = forceUpdate 
+                ? UnityEditor.ImportAssetOptions.ForceUpdate 
+                : UnityEditor.ImportAssetOptions.Default;
+            
+            UnityEditor.AssetDatabase.ImportAsset(path, options);
+            
+            return new { success = true, path = path };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object AssetGetPath(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var objectName = GetString(p, "name", null);
+            var type = GetString(p, "type", null);
+            
+            var filter = string.IsNullOrEmpty(type) ? objectName : $"t:{type} {objectName}";
+            var guids = UnityEditor.AssetDatabase.FindAssets(filter);
+            
+            if (guids.Length == 0)
+            {
+                return new { success = false, error = $"Asset not found: {objectName}" };
+            }
+            
+            var paths = guids.Take(10).Select(g => UnityEditor.AssetDatabase.GUIDToAssetPath(g)).ToList();
+            
+            return new { success = true, path = paths[0], allPaths = paths };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        #endregion
+        
+        #region Package Manager Tools
+        
+        private object PackageAdd(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var packageId = GetString(p, "package", null);
+            
+            if (string.IsNullOrEmpty(packageId))
+            {
+                return new { success = false, error = "Package ID required (e.g., 'com.unity.textmeshpro' or git URL)" };
+            }
+            
+            try
+            {
+                var request = UnityEditor.PackageManager.Client.Add(packageId);
+                
+                // Wait for completion (with timeout)
+                var timeout = GetInt(p, "timeout", 30);
+                var startTime = System.DateTime.Now;
+                
+                while (!request.IsCompleted)
+                {
+                    if ((System.DateTime.Now - startTime).TotalSeconds > timeout)
+                    {
+                        return new { success = false, error = "Package installation timed out", status = "pending" };
+                    }
+                    System.Threading.Thread.Sleep(100);
+                }
+                
+                if (request.Status == UnityEditor.PackageManager.StatusCode.Success)
+                {
+                    var pkg = request.Result;
+                    return new { 
+                        success = true, 
+                        name = pkg.name, 
+                        version = pkg.version,
+                        displayName = pkg.displayName
+                    };
+                }
+                else
+                {
+                    return new { success = false, error = request.Error?.message ?? "Unknown error" };
+                }
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PackageRemove(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var packageName = GetString(p, "package", null);
+            
+            if (string.IsNullOrEmpty(packageName))
+            {
+                return new { success = false, error = "Package name required" };
+            }
+            
+            try
+            {
+                var request = UnityEditor.PackageManager.Client.Remove(packageName);
+                
+                var timeout = GetInt(p, "timeout", 30);
+                var startTime = System.DateTime.Now;
+                
+                while (!request.IsCompleted)
+                {
+                    if ((System.DateTime.Now - startTime).TotalSeconds > timeout)
+                    {
+                        return new { success = false, error = "Package removal timed out", status = "pending" };
+                    }
+                    System.Threading.Thread.Sleep(100);
+                }
+                
+                if (request.Status == UnityEditor.PackageManager.StatusCode.Success)
+                {
+                    return new { success = true, removed = packageName };
+                }
+                else
+                {
+                    return new { success = false, error = request.Error?.message ?? "Unknown error" };
+                }
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PackageList(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            try
+            {
+                var includeBuiltIn = GetBool(p, "includeBuiltIn", false);
+                var request = UnityEditor.PackageManager.Client.List(includeBuiltIn);
+                
+                var timeout = GetInt(p, "timeout", 30);
+                var startTime = System.DateTime.Now;
+                
+                while (!request.IsCompleted)
+                {
+                    if ((System.DateTime.Now - startTime).TotalSeconds > timeout)
+                    {
+                        return new { success = false, error = "Package list timed out" };
+                    }
+                    System.Threading.Thread.Sleep(100);
+                }
+                
+                if (request.Status == UnityEditor.PackageManager.StatusCode.Success)
+                {
+                    var packages = request.Result.Select(pkg => new Dictionary<string, object>
+                    {
+                        { "name", pkg.name },
+                        { "version", pkg.version },
+                        { "displayName", pkg.displayName },
+                        { "source", pkg.source.ToString() }
+                    }).ToList();
+                    
+                    return new { success = true, count = packages.Count, packages = packages };
+                }
+                else
+                {
+                    return new { success = false, error = request.Error?.message ?? "Unknown error" };
+                }
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object PackageSearch(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var query = GetString(p, "query", "");
+            
+            try
+            {
+                var request = UnityEditor.PackageManager.Client.SearchAll();
+                
+                var timeout = GetInt(p, "timeout", 60);
+                var startTime = System.DateTime.Now;
+                
+                while (!request.IsCompleted)
+                {
+                    if ((System.DateTime.Now - startTime).TotalSeconds > timeout)
+                    {
+                        return new { success = false, error = "Package search timed out" };
+                    }
+                    System.Threading.Thread.Sleep(100);
+                }
+                
+                if (request.Status == UnityEditor.PackageManager.StatusCode.Success)
+                {
+                    var results = request.Result
+                        .Where(pkg => string.IsNullOrEmpty(query) || 
+                               pkg.name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                               (pkg.displayName?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                        .Take(50)
+                        .Select(pkg => new Dictionary<string, object>
+                        {
+                            { "name", pkg.name },
+                            { "version", pkg.version },
+                            { "displayName", pkg.displayName },
+                            { "description", pkg.description?.Substring(0, Math.Min(100, pkg.description?.Length ?? 0)) }
+                        }).ToList();
+                    
+                    return new { success = true, count = results.Count, results = results };
+                }
+                else
+                {
+                    return new { success = false, error = request.Error?.message ?? "Unknown error" };
+                }
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        #endregion
+        
+        #region Test Runner Tools
+        
+        private object TestRun(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var mode = GetString(p, "mode", "EditMode"); // EditMode or PlayMode
+            var filter = GetString(p, "filter", null);
+            var category = GetString(p, "category", null);
+            
+            try
+            {
+                var testMode = mode.ToLower() == "playmode" 
+                    ? UnityEditor.TestTools.TestRunner.Api.TestMode.PlayMode 
+                    : UnityEditor.TestTools.TestRunner.Api.TestMode.EditMode;
+                
+                var testRunnerApi = UnityEditor.ScriptableObject.CreateInstance<UnityEditor.TestTools.TestRunner.Api.TestRunnerApi>();
+                
+                var filterObj = new UnityEditor.TestTools.TestRunner.Api.Filter
+                {
+                    testMode = testMode
+                };
+                
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    filterObj.testNames = new[] { filter };
+                }
+                
+                if (!string.IsNullOrEmpty(category))
+                {
+                    filterObj.categoryNames = new[] { category };
+                }
+                
+                // Register callbacks to track results
+                var callbacks = new TestRunCallback();
+                testRunnerApi.RegisterCallbacks(callbacks);
+                
+                testRunnerApi.Execute(new UnityEditor.TestTools.TestRunner.Api.ExecutionSettings(filterObj));
+                
+                return new { 
+                    success = true, 
+                    message = $"Test run started ({mode})",
+                    filter = filter,
+                    category = category,
+                    note = "Use test.getResults to check completion"
+                };
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object TestList(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            var mode = GetString(p, "mode", "EditMode");
+            
+            try
+            {
+                var testMode = mode.ToLower() == "playmode" 
+                    ? UnityEditor.TestTools.TestRunner.Api.TestMode.PlayMode 
+                    : UnityEditor.TestTools.TestRunner.Api.TestMode.EditMode;
+                
+                var testRunnerApi = UnityEditor.ScriptableObject.CreateInstance<UnityEditor.TestTools.TestRunner.Api.TestRunnerApi>();
+                
+                var tests = new List<Dictionary<string, object>>();
+                var retriever = new TestListRetriever(tests);
+                
+                testRunnerApi.RetrieveTestList(testMode, retriever);
+                
+                // Give it a moment to populate
+                System.Threading.Thread.Sleep(500);
+                
+                return new { success = true, mode = mode, count = tests.Count, tests = tests };
+            }
+            catch (System.Exception e)
+            {
+                return new { success = false, error = e.Message };
+            }
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        private object TestGetResults(Dictionary<string, object> p)
+        {
+            #if UNITY_EDITOR
+            return new { 
+                success = true,
+                lastRun = TestRunCallback.LastResults,
+                totalTests = TestRunCallback.TotalTests,
+                passed = TestRunCallback.PassedTests,
+                failed = TestRunCallback.FailedTests,
+                skipped = TestRunCallback.SkippedTests,
+                isRunning = TestRunCallback.IsRunning
+            };
+            #else
+            return new { success = false, error = "Only available in Editor" };
+            #endif
+        }
+        
+        #if UNITY_EDITOR
+        // Test callback helper classes
+        private class TestRunCallback : UnityEditor.TestTools.TestRunner.Api.ICallbacks
+        {
+            public static List<Dictionary<string, object>> LastResults = new List<Dictionary<string, object>>();
+            public static int TotalTests = 0;
+            public static int PassedTests = 0;
+            public static int FailedTests = 0;
+            public static int SkippedTests = 0;
+            public static bool IsRunning = false;
+            
+            public void RunStarted(UnityEditor.TestTools.TestRunner.Api.ITestAdaptor testsToRun)
+            {
+                LastResults.Clear();
+                TotalTests = testsToRun.TestCaseCount;
+                PassedTests = 0;
+                FailedTests = 0;
+                SkippedTests = 0;
+                IsRunning = true;
+            }
+            
+            public void RunFinished(UnityEditor.TestTools.TestRunner.Api.ITestResultAdaptor result)
+            {
+                IsRunning = false;
+            }
+            
+            public void TestStarted(UnityEditor.TestTools.TestRunner.Api.ITestAdaptor test) { }
+            
+            public void TestFinished(UnityEditor.TestTools.TestRunner.Api.ITestResultAdaptor result)
+            {
+                if (!result.HasChildren)
+                {
+                    var testResult = new Dictionary<string, object>
+                    {
+                        { "name", result.Name },
+                        { "fullName", result.FullName },
+                        { "status", result.TestStatus.ToString() },
+                        { "duration", result.Duration },
+                        { "message", result.Message }
+                    };
+                    
+                    LastResults.Add(testResult);
+                    
+                    switch (result.TestStatus)
+                    {
+                        case UnityEditor.TestTools.TestRunner.Api.TestStatus.Passed:
+                            PassedTests++;
+                            break;
+                        case UnityEditor.TestTools.TestRunner.Api.TestStatus.Failed:
+                            FailedTests++;
+                            break;
+                        case UnityEditor.TestTools.TestRunner.Api.TestStatus.Skipped:
+                            SkippedTests++;
+                            break;
+                    }
+                }
+            }
+        }
+        
+        private class TestListRetriever : UnityEditor.TestTools.TestRunner.Api.ITestListRetriever
+        {
+            private List<Dictionary<string, object>> _tests;
+            
+            public TestListRetriever(List<Dictionary<string, object>> tests)
+            {
+                _tests = tests;
+            }
+            
+            public void TestListRetrieved(UnityEditor.TestTools.TestRunner.Api.ITestAdaptor test)
+            {
+                CollectTests(test);
+            }
+            
+            private void CollectTests(UnityEditor.TestTools.TestRunner.Api.ITestAdaptor test)
+            {
+                if (!test.HasChildren && test.IsSuite == false)
+                {
+                    _tests.Add(new Dictionary<string, object>
+                    {
+                        { "name", test.Name },
+                        { "fullName", test.FullName },
+                        { "categories", test.Categories?.ToList() ?? new List<string>() }
+                    });
+                }
+                
+                foreach (var child in test.Children)
+                {
+                    CollectTests(child);
+                }
+            }
+        }
+        #endif
+        
+        #endregion
+        
         #region Helpers
         
         private string GetToolDescription(string name)
@@ -1922,7 +3236,7 @@ namespace OpenClaw.Unity
                 "component.get" => "Get component data/fields",
                 "component.set" => "Set component field value",
                 "component.list" => "List available component types",
-                "script.execute" => "Execute C# code (requires Roslyn)",
+                "script.execute" => "Execute C# code/method (params: code, method, target, type, args - supports Debug.Log, Time.timeScale, PlayerPrefs, reflection calls)",
                 "script.read" => "Read script file contents",
                 "script.list" => "List script files in project",
                 "app.getState" => "Get application state (playing, fps, etc)",
@@ -1946,6 +3260,35 @@ namespace OpenClaw.Unity
                 "input.mouseScroll" => "Scroll mouse wheel (params: deltaX, deltaY)",
                 "input.getMousePosition" => "Get current mouse position",
                 "input.clickUI" => "Click a UI element by name (params: name or path)",
+                // Material tools
+                "material.create" => "Create a new material (params: name, shader, path, color, metallic, smoothness)",
+                "material.assign" => "Assign material to GameObject (params: target, material or materialName)",
+                "material.modify" => "Modify material properties (params: path or name, color, metallic, smoothness, emission)",
+                "material.getInfo" => "Get material info and properties (params: path or name)",
+                "material.list" => "List materials in project (params: folder, filter, maxCount)",
+                // Prefab tools
+                "prefab.create" => "Create prefab from GameObject (params: source, path)",
+                "prefab.instantiate" => "Instantiate prefab in scene (params: path or name, newName, x, y, z)",
+                "prefab.open" => "Open prefab for editing (params: path or name)",
+                "prefab.close" => "Close prefab editing mode",
+                "prefab.save" => "Save currently edited prefab",
+                // Asset tools
+                "asset.find" => "Find assets in project (params: query, type, folder, maxCount)",
+                "asset.copy" => "Copy asset to new path (params: source, destination)",
+                "asset.move" => "Move/rename asset (params: source, destination)",
+                "asset.delete" => "Delete asset (params: path, moveToTrash)",
+                "asset.refresh" => "Refresh AssetDatabase (params: forceUpdate)",
+                "asset.import" => "Import/reimport asset (params: path, forceUpdate)",
+                "asset.getPath" => "Get asset path by name (params: name, type)",
+                // Package Manager tools
+                "package.add" => "Install package (params: package - name or git URL, timeout)",
+                "package.remove" => "Remove package (params: package, timeout)",
+                "package.list" => "List installed packages (params: includeBuiltIn, timeout)",
+                "package.search" => "Search Unity package registry (params: query, timeout)",
+                // Test Runner tools
+                "test.run" => "Run tests (params: mode - EditMode/PlayMode, filter, category)",
+                "test.list" => "List available tests (params: mode)",
+                "test.getResults" => "Get last test run results",
                 _ => name
             };
         }

@@ -1,4 +1,61 @@
 # Changelog
+## [1.5.0] - 2026-02-11
+
+### Added - Major Feature Update 🚀
+
+#### Material Tools (5 tools)
+- `material.create` - Create new material with shader, color, metallic, smoothness
+- `material.assign` - Assign material to GameObject
+- `material.modify` - Modify material properties (color, metallic, smoothness, emission, tiling)
+- `material.getInfo` - Get detailed material info including all shader properties
+- `material.list` - List materials in project with filtering
+
+#### Prefab Tools (5 tools)
+- `prefab.create` - Create prefab from scene GameObject
+- `prefab.instantiate` - Instantiate prefab in scene with position
+- `prefab.open` - Open prefab for editing
+- `prefab.close` - Close prefab editing mode
+- `prefab.save` - Save currently edited prefab
+
+#### Asset Tools (7 tools)
+- `asset.find` - Search assets by query, type, folder
+- `asset.copy` - Copy asset to new path
+- `asset.move` - Move/rename asset
+- `asset.delete` - Delete asset (with trash option)
+- `asset.refresh` - Refresh AssetDatabase
+- `asset.import` - Import/reimport specific asset
+- `asset.getPath` - Get asset path by name
+
+#### Package Manager Tools (4 tools)
+- `package.add` - Install package by name or git URL
+- `package.remove` - Remove installed package
+- `package.list` - List installed packages
+- `package.search` - Search Unity package registry
+
+#### Test Runner Tools (3 tools)
+- `test.run` - Run EditMode/PlayMode tests with filtering
+- `test.list` - List available tests
+- `test.getResults` - Get last test run results
+
+#### Script Execution Enhancements
+- Enhanced `script.execute` with reflection-based method calls
+- Support for Debug.Log/LogWarning/LogError
+- Support for Time.timeScale modification
+- Support for PlayerPrefs get/set operations
+- Support for arbitrary method calls via reflection
+
+### Changed
+- Now **~80 tools** total (from 55)
+- Feature parity with major Unity MCP implementations
+
+## [1.4.0] - 2026-02-11
+
+### Added
+- MCP Bridge for direct Claude Code integration
+- Hybrid architecture: Gateway + MCP modes
+- MCP section in OpenClaw Editor Window
+- UI Menu consolidation (Window/OpenClaw Plugin/)
+
 ## [1.3.7] - 2026-02-11
 
 ### Added
