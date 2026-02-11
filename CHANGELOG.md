@@ -1,4 +1,13 @@
 # Changelog
+## [1.5.1] - 2026-02-11
+
+### Changed
+- Removed diagnostic logging added during debugging
+- Cleaned up verbose debug output from connection manager
+
+### Fixed
+- Console output clutter from poll count and command execution logs
+
 ## [1.5.0] - 2026-02-11
 
 ### Added - Major Feature Update 🚀
