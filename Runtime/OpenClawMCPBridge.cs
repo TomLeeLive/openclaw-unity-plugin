@@ -22,6 +22,18 @@ using UnityEditor;
 namespace OpenClaw.Unity
 {
     /// <summary>
+    /// Pending tool execution request for main thread processing.
+    /// </summary>
+    internal class PendingToolRequest
+    {
+        public string Tool;
+        public string ArgsJson;
+        public object Result;
+        public string Error;
+        public ManualResetEventSlim Done = new ManualResetEventSlim(false);
+    }
+    
+    /// <summary>
     /// MCP Bridge - Local HTTP server for direct tool execution.
     /// Allows MCP clients (like Claude Code) to connect directly to Unity.
     /// </summary>
@@ -54,9 +66,72 @@ namespace OpenClaw.Unity
         private OpenClawTools _tools;
         private bool _disposed;
         
+        // Queue for pending tool requests (processed on main thread)
+        private readonly Queue<PendingToolRequest> _pendingRequests = new Queue<PendingToolRequest>();
+        private readonly object _queueLock = new object();
+        
+        // Cached values (must be set from main thread)
+        private string _unityVersion = "Unknown";
+        private string _projectName = "Unknown";
+        private string _editorMode = "unknown";
+        
         private OpenClawMCPBridge()
         {
             _tools = new OpenClawTools(null);
+        }
+        
+        /// <summary>
+        /// Cache Unity values that can only be accessed from main thread.
+        /// Call this from main thread before starting the bridge.
+        /// </summary>
+        public void CacheMainThreadValues()
+        {
+            _unityVersion = Application.unityVersion;
+            _projectName = Application.productName;
+            #if UNITY_EDITOR
+            _editorMode = EditorApplication.isPlaying ? "play" : "edit";
+            #else
+            _editorMode = "runtime";
+            #endif
+        }
+        
+        /// <summary>
+        /// Update editor mode cache. Call from main thread.
+        /// </summary>
+        public void UpdateEditorMode()
+        {
+            #if UNITY_EDITOR
+            _editorMode = EditorApplication.isPlaying ? "play" : "edit";
+            #endif
+        }
+        
+        /// <summary>
+        /// Process pending requests on main thread. Called by EditorApplication.update.
+        /// </summary>
+        public void ProcessPendingRequests()
+        {
+            PendingToolRequest request = null;
+            
+            lock (_queueLock)
+            {
+                if (_pendingRequests.Count > 0)
+                {
+                    request = _pendingRequests.Dequeue();
+                }
+            }
+            
+            if (request != null)
+            {
+                try
+                {
+                    request.Result = _tools.Execute(request.Tool, request.ArgsJson);
+                }
+                catch (Exception e)
+                {
+                    request.Error = e.Message;
+                }
+                request.Done.Set();
+            }
         }
         
         /// <summary>
@@ -169,8 +244,12 @@ namespace OpenClaw.Unity
                     case "/tools":
                         await HandleToolsListRequest(response);
                         break;
+                    case "/poll":
+                        // Gateway compatibility - MCP bridge has no pending requests to return
+                        await SendJsonResponse(response, 200, new Dictionary<string, object>());
+                        break;
                     default:
-                        await SendJsonResponse(response, 404, new { error = "Not found" });
+                        await SendJsonResponse(response, 404, MakeError("Not found"));
                         break;
                 }
             }
@@ -179,17 +258,22 @@ namespace OpenClaw.Unity
                 Debug.LogError($"[OpenClaw MCP] Request error: {e.Message}");
                 try
                 {
-                    await SendJsonResponse(response, 500, new { error = e.Message });
+                    await SendJsonResponse(response, 500, MakeError(e.Message));
                 }
                 catch { }
             }
+        }
+        
+        private static Dictionary<string, object> MakeError(string message)
+        {
+            return new Dictionary<string, object> { { "error", message } };
         }
         
         private async Task HandleToolRequest(HttpListenerRequest request, HttpListenerResponse response)
         {
             if (request.HttpMethod != "POST")
             {
-                await SendJsonResponse(response, 405, new { error = "Method not allowed" });
+                await SendJsonResponse(response, 405, MakeError("Method not allowed"));
                 return;
             }
             
@@ -205,7 +289,7 @@ namespace OpenClaw.Unity
             
             if (!data.TryGetValue("tool", out var toolObj))
             {
-                await SendJsonResponse(response, 400, new { error = "Missing 'tool' field" });
+                await SendJsonResponse(response, 400, MakeError("Missing 'tool' field"));
                 return;
             }
             
@@ -213,54 +297,42 @@ namespace OpenClaw.Unity
             var args = data.ContainsKey("arguments") ? data["arguments"] : new Dictionary<string, object>();
             var argsJson = DictionaryToJson(args as Dictionary<string, object> ?? new Dictionary<string, object>());
             
-            // Execute on main thread and wait
-            object result = null;
-            string error = null;
-            var done = new ManualResetEventSlim(false);
-            
-            #if UNITY_EDITOR
-            EditorApplication.delayCall += () =>
+            // Create pending request and queue it for main thread
+            var pendingRequest = new PendingToolRequest
             {
-                try
-                {
-                    result = _tools.Execute(tool, argsJson);
-                }
-                catch (Exception e)
-                {
-                    error = e.Message;
-                }
-                done.Set();
+                Tool = tool,
+                ArgsJson = argsJson
             };
-            #else
-            // In play mode, queue for main thread
-            OpenClawConnectionManager.Instance?.RunOnMainThread(() =>
+            
+            lock (_queueLock)
             {
-                try
-                {
-                    result = _tools.Execute(tool, argsJson);
-                }
-                catch (Exception e)
-                {
-                    error = e.Message;
-                }
-                done.Set();
-            });
-            #endif
+                _pendingRequests.Enqueue(pendingRequest);
+            }
             
             // Wait for execution (timeout 30s)
-            if (!done.Wait(30000))
+            if (!pendingRequest.Done.Wait(30000))
             {
-                await SendJsonResponse(response, 504, new { error = "Execution timeout" });
+                await SendJsonResponse(response, 504, MakeError("Execution timeout - Unity may not be responding"));
                 return;
             }
             
-            if (error != null)
+            if (pendingRequest.Error != null)
             {
-                await SendJsonResponse(response, 200, new { success = false, error = error });
+                var errorResult = new Dictionary<string, object>
+                {
+                    { "success", false },
+                    { "error", pendingRequest.Error }
+                };
+                await SendJsonResponse(response, 200, errorResult);
             }
             else
             {
-                await SendJsonResponse(response, 200, new { success = true, result = result });
+                var successResult = new Dictionary<string, object>
+                {
+                    { "success", true },
+                    { "result", pendingRequest.Result }
+                };
+                await SendJsonResponse(response, 200, successResult);
             }
         }
         
@@ -270,13 +342,9 @@ namespace OpenClaw.Unity
             {
                 { "running", true },
                 { "port", Port },
-                { "unity_version", Application.unityVersion },
-                { "project", Application.productName },
-                #if UNITY_EDITOR
-                { "mode", EditorApplication.isPlaying ? "play" : "edit" },
-                #else
-                { "mode", "runtime" },
-                #endif
+                { "unity_version", _unityVersion },
+                { "project", _projectName },
+                { "mode", _editorMode }
             };
             
             await SendJsonResponse(response, 200, status);
@@ -285,7 +353,12 @@ namespace OpenClaw.Unity
         private async Task HandleToolsListRequest(HttpListenerResponse response)
         {
             var tools = _tools.GetToolList();
-            await SendJsonResponse(response, 200, new { tools = tools, count = tools.Count });
+            var result = new Dictionary<string, object>
+            {
+                { "tools", tools },
+                { "count", tools.Count }
+            };
+            await SendJsonResponse(response, 200, result);
         }
         
         private async Task SendJsonResponse(HttpListenerResponse response, int statusCode, object data)
@@ -294,6 +367,7 @@ namespace OpenClaw.Unity
             response.ContentType = "application/json";
             
             var json = DictionaryToJson(data);
+            Debug.Log($"[OpenClaw MCP] Response ({statusCode}): {json}");
             var buffer = Encoding.UTF8.GetBytes(json);
             
             response.ContentLength64 = buffer.Length;
@@ -314,6 +388,22 @@ namespace OpenClaw.Unity
             if (obj is int || obj is long || obj is float || obj is double)
                 return obj.ToString();
             
+            // Check for Dictionary with string keys (any value type)
+            var objType = obj.GetType();
+            if (objType.IsGenericType && objType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                var keyType = objType.GetGenericArguments()[0];
+                if (keyType == typeof(string))
+                {
+                    var parts = new List<string>();
+                    foreach (System.Collections.DictionaryEntry entry in (System.Collections.IDictionary)obj)
+                    {
+                        parts.Add($"\"{entry.Key}\":{DictionaryToJson(entry.Value)}");
+                    }
+                    return "{" + string.Join(",", parts) + "}";
+                }
+            }
+            
             if (obj is Dictionary<string, object> dict)
             {
                 var parts = new List<string>();
@@ -324,22 +414,13 @@ namespace OpenClaw.Unity
                 return "{" + string.Join(",", parts) + "}";
             }
             
-            if (obj is List<object> list)
+            // Handle any IList (List<T>, arrays, etc.)
+            if (obj is System.Collections.IList ilist)
             {
                 var parts = new List<string>();
-                foreach (var item in list)
+                foreach (var item in ilist)
                 {
                     parts.Add(DictionaryToJson(item));
-                }
-                return "[" + string.Join(",", parts) + "]";
-            }
-            
-            if (obj is List<string> strList)
-            {
-                var parts = new List<string>();
-                foreach (var item in strList)
-                {
-                    parts.Add($"\"{EscapeJsonString(item)}\"");
                 }
                 return "[" + string.Join(",", parts) + "]";
             }
@@ -449,6 +530,8 @@ namespace OpenClaw.Unity
     [InitializeOnLoad]
     public static class OpenClawMCPBridgeEditor
     {
+        private static bool _updateHooked = false;
+        
         static OpenClawMCPBridgeEditor()
         {
             EditorApplication.delayCall += () =>
@@ -457,26 +540,53 @@ namespace OpenClaw.Unity
                 var config = OpenClawConfig.Load();
                 if (config != null && config.enableMCPBridge)
                 {
-                    OpenClawMCPBridge.Instance.Start(config.mcpBridgePort);
+                    StartMCPBridge();
                 }
             };
         }
         
-        [MenuItem("Window/OpenClaw/Start MCP Bridge")]
+        private static void OnEditorUpdate()
+        {
+            // Process pending MCP requests on main thread
+            if (OpenClawMCPBridge.Instance.IsRunning)
+            {
+                OpenClawMCPBridge.Instance.ProcessPendingRequests();
+                OpenClawMCPBridge.Instance.UpdateEditorMode();
+            }
+        }
+        
+        [MenuItem("Window/OpenClaw Plugin/MCP Bridge/Start", false, 20)]
         public static void StartMCPBridge()
         {
             var config = OpenClawConfig.Load();
             var port = config?.mcpBridgePort ?? 27182;
+            
+            // Cache main-thread-only values before starting
+            OpenClawMCPBridge.Instance.CacheMainThreadValues();
             OpenClawMCPBridge.Instance.Start(port);
+            
+            // Hook into update loop to process requests on main thread
+            if (!_updateHooked)
+            {
+                EditorApplication.update += OnEditorUpdate;
+                _updateHooked = true;
+            }
         }
         
-        [MenuItem("Window/OpenClaw/Stop MCP Bridge")]
+        [MenuItem("Window/OpenClaw Plugin/MCP Bridge/Stop", false, 21)]
         public static void StopMCPBridge()
         {
             OpenClawMCPBridge.Instance.Stop();
+            
+            // Unhook update loop
+            if (_updateHooked)
+            {
+                EditorApplication.update -= OnEditorUpdate;
+                _updateHooked = false;
+            }
         }
         
-        [MenuItem("Window/OpenClaw/MCP Bridge Status")]
+        [MenuItem("Window/OpenClaw Plugin/MCP Bridge/Status", false, 22)]
         public static void MCPBridgeStatus()
         {
             var bridge = OpenClawMCPBridge.Instance;

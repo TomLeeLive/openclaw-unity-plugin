@@ -90,6 +90,11 @@ namespace OpenClaw.Unity
                 { "editor.domainReload", EditorDomainReload },
                 { "editor.focusWindow", EditorFocusWindow },
                 { "editor.listWindows", EditorListWindows },
+                { "editor.getState", AppGetState }, // Alias for MCP compatibility
+                { "editor.play", AppPlay },         // Alias for MCP compatibility
+                { "editor.stop", AppStop },         // Alias for MCP compatibility
+                { "editor.pause", AppPause },       // Alias for MCP compatibility
+                { "editor.unpause", AppPlay },      // Alias for MCP compatibility (resume = play)
                 
                 // Input (for game testing)
                 { "input.keyPress", InputKeyPress },

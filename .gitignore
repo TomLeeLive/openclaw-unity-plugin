@@ -28,3 +28,4 @@ Thumbs.db
 # Unity Package Manager
 Packages/packages-lock.json
 .omc/
+MCP~/node_modules/

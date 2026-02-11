@@ -6,6 +6,7 @@
 
 using UnityEngine;
 using UnityEditor;
+using OpenClaw.Unity;
 
 namespace OpenClaw.Unity.Editor
 {
@@ -16,10 +17,12 @@ namespace OpenClaw.Unity.Editor
     {
         private OpenClawConfig _config;
         private Vector2 _scrollPos;
+        private bool _showGateway = true;
+        private bool _showMCP = true;
         private bool _showTools = true;
         private bool _showLogs = true;
         
-        [MenuItem("Window/OpenClaw Plugin")]
+        [MenuItem("Window/OpenClaw Plugin/Settings", false, 0)]
         public static void ShowWindow()
         {
             var window = GetWindow<OpenClawWindow>("OpenClaw Plugin");
@@ -65,7 +68,9 @@ namespace OpenClaw.Unity.Editor
             
             DrawHeader();
             EditorGUILayout.Space(10);
-            DrawConnectionStatus();
+            DrawGatewaySection();
+            EditorGUILayout.Space(10);
+            DrawMCPSection();
             EditorGUILayout.Space(10);
             DrawConfiguration();
             EditorGUILayout.Space(10);
@@ -97,9 +102,16 @@ namespace OpenClaw.Unity.Editor
             EditorGUILayout.LabelField("Connect Unity to your AI assistant", EditorStyles.centeredGreyMiniLabel);
         }
         
-        private void DrawConnectionStatus()
+        private void DrawGatewaySection()
         {
+            _showGateway = EditorGUILayout.Foldout(_showGateway, "Gateway Connection (Remote)", true);
+            
+            if (!_showGateway) return;
+            
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            
+            EditorGUILayout.LabelField("Connect to OpenClaw Gateway for remote AI access", EditorStyles.miniLabel);
+            EditorGUILayout.Space(3);
             
             // Use the unified connection manager via EditorBridge
             var connManager = OpenClawConnectionManager.Instance;
@@ -178,6 +190,94 @@ namespace OpenClaw.Unity.Editor
             EditorGUILayout.EndVertical();
         }
         
+        private void DrawMCPSection()
+        {
+            _showMCP = EditorGUILayout.Foldout(_showMCP, "MCP Bridge (Local)", true);
+            
+            if (!_showMCP) return;
+            
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            
+            EditorGUILayout.LabelField("Direct connection for Claude Code, Cursor, etc.", EditorStyles.miniLabel);
+            EditorGUILayout.Space(3);
+            
+            var bridge = OpenClawMCPBridge.Instance;
+            var isRunning = bridge.IsRunning;
+            
+            // Status indicator
+            EditorGUILayout.BeginHorizontal();
+            
+            var oldColor = GUI.color;
+            GUI.color = isRunning ? Color.green : Color.gray;
+            EditorGUILayout.LabelField("●", GUILayout.Width(20));
+            GUI.color = oldColor;
+            
+            EditorGUILayout.LabelField(isRunning ? "Running" : "Stopped");
+            
+            if (isRunning)
+            {
+                EditorGUILayout.LabelField($"Port: {bridge.Port}", EditorStyles.miniLabel, GUILayout.Width(80));
+            }
+            
+            EditorGUILayout.EndHorizontal();
+            
+            // Connection URL
+            if (isRunning)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField($"URL: http://127.0.0.1:{bridge.Port}", EditorStyles.miniLabel);
+                if (GUILayout.Button("Copy", GUILayout.Width(50)))
+                {
+                    GUIUtility.systemCopyBuffer = $"http://127.0.0.1:{bridge.Port}";
+                    Debug.Log("[OpenClaw MCP] URL copied to clipboard");
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            
+            // Error message
+            if (!string.IsNullOrEmpty(bridge.LastError))
+            {
+                EditorGUILayout.HelpBox(bridge.LastError, MessageType.Error);
+            }
+            
+            EditorGUILayout.Space(5);
+            
+            // Buttons
+            EditorGUILayout.BeginHorizontal();
+            
+            if (isRunning)
+            {
+                if (GUILayout.Button("Stop MCP Bridge"))
+                {
+                    OpenClawMCPBridgeEditor.StopMCPBridge();
+                }
+            }
+            else
+            {
+                if (GUILayout.Button("Start MCP Bridge"))
+                {
+                    OpenClawMCPBridgeEditor.StartMCPBridge();
+                }
+            }
+            
+            EditorGUILayout.EndHorizontal();
+            
+            // MCP Setup info
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Claude Code Setup:", EditorStyles.miniBoldLabel);
+            
+            var mcpCommand = "claude mcp add unity -- node <path>/MCP~/index.js";
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.SelectableLabel(mcpCommand, EditorStyles.miniTextField, GUILayout.Height(18));
+            if (GUILayout.Button("?", GUILayout.Width(20)))
+            {
+                Application.OpenURL("https://github.com/TomLeeLive/openclaw-unity-plugin#mcp-integration");
+            }
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndVertical();
+        }
+        
         private void DrawConfiguration()
         {
             EditorGUILayout.LabelField("Configuration", EditorStyles.boldLabel);
@@ -201,6 +301,12 @@ namespace OpenClaw.Unity.Editor
             _config.captureConsoleLogs = EditorGUILayout.Toggle("Capture Console Logs", _config.captureConsoleLogs);
             _config.maxLogEntries = EditorGUILayout.IntField("Max Log Entries", _config.maxLogEntries);
             _config.minLogLevel = (OpenClawConfig.LogLevel)EditorGUILayout.EnumPopup("Min Log Level", _config.minLogLevel);
+            
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("MCP Bridge", EditorStyles.miniBoldLabel);
+            
+            _config.enableMCPBridge = EditorGUILayout.Toggle("Enable MCP Bridge", _config.enableMCPBridge);
+            _config.mcpBridgePort = EditorGUILayout.IntField("MCP Bridge Port", _config.mcpBridgePort);
             
             EditorGUILayout.Space(5);
             EditorGUILayout.LabelField("Security", EditorStyles.miniBoldLabel);
@@ -242,6 +348,8 @@ namespace OpenClaw.Unity.Editor
                 ("component.*", "Add, remove, modify components"),
                 ("script.*", "Read script files"),
                 ("app.*", "Play mode control"),
+                ("editor.*", "Editor control (aliases for app.*)"),
+                ("input.*", "Keyboard/mouse input simulation"),
                 ("debug.*", "Logging, screenshots, hierarchy")
             };
             
