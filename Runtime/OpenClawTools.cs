@@ -3004,9 +3004,12 @@ namespace OpenClaw.Unity
         
         #region Test Runner Tools
         
+        // Note: Test Runner tools require Unity Test Framework package
+        // Install via Package Manager: com.unity.test-framework
+        
         private object TestRun(Dictionary<string, object> p)
         {
-            #if UNITY_EDITOR
+            #if UNITY_EDITOR && UNITY_INCLUDE_TESTS
             var mode = GetString(p, "mode", "EditMode"); // EditMode or PlayMode
             var filter = GetString(p, "filter", null);
             var category = GetString(p, "category", null);
@@ -3053,13 +3056,13 @@ namespace OpenClaw.Unity
                 return new { success = false, error = e.Message };
             }
             #else
-            return new { success = false, error = "Only available in Editor" };
+            return new { success = false, error = "Test Framework not installed. Add com.unity.test-framework via Package Manager." };
             #endif
         }
         
         private object TestList(Dictionary<string, object> p)
         {
-            #if UNITY_EDITOR
+            #if UNITY_EDITOR && UNITY_INCLUDE_TESTS
             var mode = GetString(p, "mode", "EditMode");
             
             try
@@ -3085,13 +3088,13 @@ namespace OpenClaw.Unity
                 return new { success = false, error = e.Message };
             }
             #else
-            return new { success = false, error = "Only available in Editor" };
+            return new { success = false, error = "Test Framework not installed. Add com.unity.test-framework via Package Manager." };
             #endif
         }
         
         private object TestGetResults(Dictionary<string, object> p)
         {
-            #if UNITY_EDITOR
+            #if UNITY_EDITOR && UNITY_INCLUDE_TESTS
             return new { 
                 success = true,
                 lastRun = TestRunCallback.LastResults,
@@ -3102,12 +3105,12 @@ namespace OpenClaw.Unity
                 isRunning = TestRunCallback.IsRunning
             };
             #else
-            return new { success = false, error = "Only available in Editor" };
+            return new { success = false, error = "Test Framework not installed. Add com.unity.test-framework via Package Manager." };
             #endif
         }
         
-        #if UNITY_EDITOR
-        // Test callback helper classes
+        #if UNITY_EDITOR && UNITY_INCLUDE_TESTS
+        // Test callback helper classes (only compiled when Test Framework is installed)
         private class TestRunCallback : UnityEditor.TestTools.TestRunner.Api.ICallbacks
         {
             public static List<Dictionary<string, object>> LastResults = new List<Dictionary<string, object>>();
