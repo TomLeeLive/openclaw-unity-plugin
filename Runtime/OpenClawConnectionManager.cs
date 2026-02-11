@@ -389,23 +389,39 @@ namespace OpenClaw.Unity
                 
                 var command = ParseJson(json);
                 var tool = command.TryGetValue("tool", out var t) ? t?.ToString() : null;
-                var requestId = command.TryGetValue("requestId", out var r) ? r?.ToString() : null;
                 
-                // Handle parameters - could be string, dictionary, or null
+                // Support both "requestId" and "toolCallId" (gateway extension uses toolCallId)
+                var requestId = command.TryGetValue("requestId", out var r) ? r?.ToString() : null;
+                if (string.IsNullOrEmpty(requestId))
+                {
+                    requestId = command.TryGetValue("toolCallId", out var tc) ? tc?.ToString() : null;
+                }
+                
+                // Handle parameters/arguments - support both field names (gateway uses "arguments")
                 string parameters = "{}";
+                object paramValue = null;
                 if (command.TryGetValue("parameters", out var p) && p != null)
                 {
-                    if (p is string ps)
+                    paramValue = p;
+                }
+                else if (command.TryGetValue("arguments", out var a) && a != null)
+                {
+                    paramValue = a;
+                }
+                
+                if (paramValue != null)
+                {
+                    if (paramValue is string ps)
                     {
                         parameters = ps;
                     }
-                    else if (p is Dictionary<string, object> pd)
+                    else if (paramValue is Dictionary<string, object> pd)
                     {
                         parameters = DictionaryToJson(pd);
                     }
                     else
                     {
-                        parameters = p.ToString();
+                        parameters = paramValue.ToString();
                     }
                 }
                 
@@ -456,7 +472,8 @@ namespace OpenClaw.Unity
                 var responseData = new Dictionary<string, object>
                 {
                     { "sessionId", SessionId },
-                    { "requestId", requestId },
+                    { "toolCallId", requestId }, // Use toolCallId for gateway extension compatibility
+                    { "requestId", requestId },  // Also include requestId for backwards compatibility
                     { "tool", tool },
                     { "success", error == null },
                     { "result", result },
