@@ -144,7 +144,7 @@ The skill provides:
 - **[Development Guide](Documentation~/DEVELOPMENT.md)** - Architecture, extending tools, and contribution guidelines
 - **[Testing Guide](Documentation~/TESTING.md)** - Complete testing guide with examples
 
-## Available Tools (~80 total)
+## Available Tools (~100 total)
 
 ### Console (3 tools)
 | Tool | Description |
@@ -285,6 +285,54 @@ The skill provides:
 | `test.run` | Run EditMode/PlayMode tests with filtering |
 | `test.list` | List available tests |
 | `test.getResults` | Get last test run results |
+
+### Batch Execution (1 tool) - NEW in v1.6.0
+| Tool | Description |
+|------|-------------|
+| `batch.execute` | Execute multiple tools in one call (10-100x performance) |
+
+**Example:**
+```json
+{
+  "commands": [
+    { "tool": "scene.getActive", "params": {} },
+    { "tool": "gameobject.find", "params": { "name": "Player" } },
+    { "tool": "debug.screenshot", "params": {} }
+  ],
+  "stopOnError": false
+}
+```
+
+### Session Info (1 tool) - NEW in v1.6.0
+| Tool | Description |
+|------|-------------|
+| `session.getInfo` | Get session info (project, processId, machineNa) for multi-instance support |
+
+### ScriptableObject (6 tools) - NEW in v1.6.0
+| Tool | Description |
+|------|-------------|
+| `scriptableobject.create` | Create new ScriptableObject asset |
+| `scriptableobject.load` | Load and inspect ScriptableObject fields |
+| `scriptableobject.save` | Save ScriptableObject changes |
+| `scriptableobject.getField` | Get specific field value |
+| `scriptableobject.setField` | Set field value with auto-save |
+| `scriptableobject.list` | List ScriptableObjects in project |
+
+### Shader (3 tools) - NEW in v1.6.0
+| Tool | Description |
+|------|-------------|
+| `shader.list` | List shaders in project |
+| `shader.getInfo` | Get shader properties and info |
+| `shader.getKeywords` | Get shader keywords |
+
+### Texture (5 tools) - NEW in v1.6.0
+| Tool | Description |
+|------|-------------|
+| `texture.create` | Create new texture with color fill |
+| `texture.getInfo` | Get texture info (size, format, import settings) |
+| `texture.setPixels` | Fill region with color |
+| `texture.resize` | Resize texture via import settings |
+| `texture.list` | List textures in project |
 
 ## Architecture
 

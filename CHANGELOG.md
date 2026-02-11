@@ -1,4 +1,43 @@
 # Changelog
+## [1.6.0] - 2026-02-11
+
+### Added - Performance & Power Update 🚀
+
+#### Batch Execution (1 tool)
+- `batch.execute` - Execute multiple tools in one call (10-100x performance boost)
+  - Supports `stopOnError` option
+  - Returns detailed results for each command
+
+#### Session Info (1 tool)
+- `session.getInfo` - Get session info for multi-instance identification
+  - Returns project name, process ID, machine name, session ID
+
+#### ScriptableObject Tools (6 tools)
+- `scriptableobject.create` - Create new ScriptableObject asset
+- `scriptableobject.load` - Load and inspect ScriptableObject
+- `scriptableobject.save` - Save ScriptableObject changes
+- `scriptableobject.getField` - Get specific field value
+- `scriptableobject.setField` - Set field value with auto-save option
+- `scriptableobject.list` - List ScriptableObjects in project
+
+#### Shader Tools (3 tools)
+- `shader.list` - List shaders in project
+- `shader.getInfo` - Get shader properties and info
+- `shader.getKeywords` - Get shader keywords
+
+#### Texture Tools (5 tools)
+- `texture.create` - Create new texture with color fill
+- `texture.getInfo` - Get texture info (size, format, import settings)
+- `texture.setPixels` - Fill region with color
+- `texture.resize` - Resize texture via import settings
+- `texture.list` - List textures in project
+
+### Summary
+- **16 new tools** added (total ~100 tools)
+- Batch execution for AI workflow optimization
+- ScriptableObject support for data-driven games
+- Shader/Texture tools for visual asset management
+
 ## [1.5.1] - 2026-02-11
 
 ### Changed

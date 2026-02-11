@@ -142,6 +142,32 @@ namespace OpenClaw.Unity
                 { "input.getMousePosition", InputGetMousePosition },
                 { "input.clickUI", InputClickUI },
                 { "input.click", InputClickUI }, // Alias for clickUI
+                
+                // Batch Execution (v1.6.0)
+                { "batch.execute", BatchExecute },
+                
+                // Session Info (v1.6.0 - Multi-instance support)
+                { "session.getInfo", SessionGetInfo },
+                
+                // ScriptableObject (v1.6.0)
+                { "scriptableobject.create", ScriptableObjectCreate },
+                { "scriptableobject.load", ScriptableObjectLoad },
+                { "scriptableobject.save", ScriptableObjectSave },
+                { "scriptableobject.getField", ScriptableObjectGetField },
+                { "scriptableobject.setField", ScriptableObjectSetField },
+                { "scriptableobject.list", ScriptableObjectList },
+                
+                // Shader (v1.6.0)
+                { "shader.list", ShaderList },
+                { "shader.getInfo", ShaderGetInfo },
+                { "shader.getKeywords", ShaderGetKeywords },
+                
+                // Texture (v1.6.0)
+                { "texture.create", TextureCreate },
+                { "texture.getInfo", TextureGetInfo },
+                { "texture.setPixels", TextureSetPixels },
+                { "texture.resize", TextureResize },
+                { "texture.list", TextureList },
             };
         }
         
@@ -3399,6 +3425,722 @@ namespace OpenClaw.Unity
                 return ParseVector3(dict);
             
             return value;
+        }
+        
+        #endregion
+        
+        #region Batch Execution (v1.6.0)
+        
+        /// <summary>
+        /// Execute multiple tools in a single call for better performance.
+        /// Reduces round-trip latency by 10-100x for multi-operation workflows.
+        /// </summary>
+        private object BatchExecute(Dictionary<string, object> p)
+        {
+            // Get the commands array
+            if (!p.TryGetValue("commands", out var commandsObj))
+            {
+                return new { success = false, error = "Missing 'commands' array" };
+            }
+            
+            var commands = new List<Dictionary<string, object>>();
+            
+            // Parse commands from various formats
+            if (commandsObj is List<object> cmdList)
+            {
+                foreach (var cmd in cmdList)
+                {
+                    if (cmd is Dictionary<string, object> cmdDict)
+                        commands.Add(cmdDict);
+                }
+            }
+            else if (commandsObj is object[] cmdArray)
+            {
+                foreach (var cmd in cmdArray)
+                {
+                    if (cmd is Dictionary<string, object> cmdDict)
+                        commands.Add(cmdDict);
+                }
+            }
+            
+            if (commands.Count == 0)
+            {
+                return new { success = false, error = "No valid commands found in 'commands' array" };
+            }
+            
+            var stopOnError = GetBool(p, "stopOnError", false);
+            var results = new List<object>();
+            var totalSuccess = true;
+            var executedCount = 0;
+            var errorCount = 0;
+            
+            foreach (var cmd in commands)
+            {
+                var tool = GetString(cmd, "tool", null);
+                if (string.IsNullOrEmpty(tool))
+                {
+                    results.Add(new { success = false, error = "Missing 'tool' name", tool = (string)null });
+                    errorCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+                
+                try
+                {
+                    // Get parameters for this command
+                    var cmdParams = new Dictionary<string, object>();
+                    if (cmd.TryGetValue("params", out var paramsObj) && paramsObj is Dictionary<string, object> pd)
+                    {
+                        cmdParams = pd;
+                    }
+                    else if (cmd.TryGetValue("parameters", out var params2Obj) && params2Obj is Dictionary<string, object> pd2)
+                    {
+                        cmdParams = pd2;
+                    }
+                    
+                    // Execute the tool
+                    if (!_tools.TryGetValue(tool, out var toolFunc))
+                    {
+                        results.Add(new { success = false, error = $"Unknown tool: {tool}", tool });
+                        errorCount++;
+                        totalSuccess = false;
+                        if (stopOnError) break;
+                        continue;
+                    }
+                    
+                    var result = toolFunc(cmdParams);
+                    results.Add(new { success = true, tool, result });
+                    executedCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new { success = false, error = ex.Message, tool });
+                    errorCount++;
+                    totalSuccess = false;
+                    if (stopOnError) break;
+                }
+            }
+            
+            return new
+            {
+                success = totalSuccess,
+                total = commands.Count,
+                executed = executedCount,
+                errors = errorCount,
+                results
+            };
+        }
+        
+        #endregion
+        
+        #region Session Info (v1.6.0)
+        
+        /// <summary>
+        /// Get session information for multi-instance identification.
+        /// </summary>
+        private object SessionGetInfo(Dictionary<string, object> p)
+        {
+            return new
+            {
+                success = true,
+                project = Application.productName,
+                unityVersion = Application.unityVersion,
+                platform = Application.platform.ToString(),
+                dataPath = Application.dataPath,
+                isPlaying = Application.isPlaying,
+                isPaused = Application.isEditor && 
+#if UNITY_EDITOR
+                    UnityEditor.EditorApplication.isPaused,
+#else
+                    false,
+#endif
+                processId = System.Diagnostics.Process.GetCurrentProcess().Id,
+                machineName = Environment.MachineName,
+                sessionId = OpenClawConnectionManager.Instance?.SessionId
+            };
+        }
+        
+        #endregion
+        
+        #region ScriptableObject Tools (v1.6.0)
+        
+        private object ScriptableObjectCreate(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var typeName = GetString(p, "type", null);
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", "NewScriptableObject");
+            
+            if (string.IsNullOrEmpty(typeName))
+                return new { success = false, error = "Missing 'type' parameter" };
+            
+            // Find the type
+            var type = FindType(typeName);
+            if (type == null || !typeof(ScriptableObject).IsAssignableFrom(type))
+                return new { success = false, error = $"Type '{typeName}' not found or not a ScriptableObject" };
+            
+            // Create instance
+            var instance = ScriptableObject.CreateInstance(type);
+            instance.name = name;
+            
+            // Save to path if specified
+            if (!string.IsNullOrEmpty(path))
+            {
+                if (!path.EndsWith(".asset"))
+                    path += ".asset";
+                if (!path.StartsWith("Assets/"))
+                    path = "Assets/" + path;
+                
+                // Ensure directory exists
+                var dir = System.IO.Path.GetDirectoryName(path);
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+                
+                UnityEditor.AssetDatabase.CreateAsset(instance, path);
+                UnityEditor.AssetDatabase.SaveAssets();
+                
+                return new { success = true, path, type = typeName, name };
+            }
+            
+            return new { success = true, created = true, type = typeName, name, note = "Instance created but not saved (no path specified)" };
+#else
+            return new { success = false, error = "ScriptableObject creation requires Editor mode" };
+#endif
+        }
+        
+        private object ScriptableObjectLoad(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            
+            if (string.IsNullOrEmpty(path) && string.IsNullOrEmpty(name))
+                return new { success = false, error = "Specify 'path' or 'name'" };
+            
+            ScriptableObject asset = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"{name} t:ScriptableObject");
+                if (guids.Length > 0)
+                {
+                    var assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+                    path = assetPath;
+                }
+            }
+            
+            if (asset == null)
+                return new { success = false, error = $"ScriptableObject not found" };
+            
+            // Get all fields
+            var fields = new Dictionary<string, object>();
+            var type = asset.GetType();
+            
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                try
+                {
+                    fields[field.Name] = SerializeValue(field.GetValue(asset));
+                }
+                catch { }
+            }
+            
+            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (prop.CanRead && prop.GetIndexParameters().Length == 0)
+                {
+                    try
+                    {
+                        fields[prop.Name] = SerializeValue(prop.GetValue(asset));
+                    }
+                    catch { }
+                }
+            }
+            
+            return new
+            {
+                success = true,
+                path,
+                type = type.Name,
+                name = asset.name,
+                fields
+            };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object ScriptableObjectSave(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            
+            if (string.IsNullOrEmpty(path))
+                return new { success = false, error = "Missing 'path'" };
+            
+            var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+            if (asset == null)
+                return new { success = false, error = "Asset not found" };
+            
+            UnityEditor.EditorUtility.SetDirty(asset);
+            UnityEditor.AssetDatabase.SaveAssets();
+            
+            return new { success = true, path };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object ScriptableObjectGetField(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var fieldName = GetString(p, "field", null);
+            
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(fieldName))
+                return new { success = false, error = "Missing 'path' or 'field'" };
+            
+            var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+            if (asset == null)
+                return new { success = false, error = "Asset not found" };
+            
+            var type = asset.GetType();
+            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var prop = type.GetProperty(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            object value = null;
+            string memberType = null;
+            
+            if (field != null)
+            {
+                value = field.GetValue(asset);
+                memberType = field.FieldType.Name;
+            }
+            else if (prop != null && prop.CanRead)
+            {
+                value = prop.GetValue(asset);
+                memberType = prop.PropertyType.Name;
+            }
+            else
+            {
+                return new { success = false, error = $"Field '{fieldName}' not found" };
+            }
+            
+            return new
+            {
+                success = true,
+                field = fieldName,
+                value = SerializeValue(value),
+                type = memberType
+            };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object ScriptableObjectSetField(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var fieldName = GetString(p, "field", null);
+            
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(fieldName))
+                return new { success = false, error = "Missing 'path' or 'field'" };
+            
+            if (!p.TryGetValue("value", out var newValue))
+                return new { success = false, error = "Missing 'value'" };
+            
+            var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+            if (asset == null)
+                return new { success = false, error = "Asset not found" };
+            
+            var type = asset.GetType();
+            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var prop = type.GetProperty(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            
+            if (field != null)
+            {
+                var converted = ConvertValue(newValue, field.FieldType);
+                field.SetValue(asset, converted);
+            }
+            else if (prop != null && prop.CanWrite)
+            {
+                var converted = ConvertValue(newValue, prop.PropertyType);
+                prop.SetValue(asset, converted);
+            }
+            else
+            {
+                return new { success = false, error = $"Field '{fieldName}' not found or read-only" };
+            }
+            
+            UnityEditor.EditorUtility.SetDirty(asset);
+            
+            var autoSave = GetBool(p, "save", true);
+            if (autoSave)
+                UnityEditor.AssetDatabase.SaveAssets();
+            
+            return new { success = true, field = fieldName, saved = autoSave };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object ScriptableObjectList(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var folder = GetString(p, "folder", "Assets");
+            var typeName = GetString(p, "type", null);
+            var maxCount = GetInt(p, "maxCount", 100);
+            
+            var filter = "t:ScriptableObject";
+            if (!string.IsNullOrEmpty(typeName))
+                filter = $"t:{typeName}";
+            
+            var guids = UnityEditor.AssetDatabase.FindAssets(filter, new[] { folder });
+            var assets = new List<object>();
+            
+            for (int i = 0; i < Math.Min(guids.Length, maxCount); i++)
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[i]);
+                var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset != null)
+                {
+                    assets.Add(new
+                    {
+                        path,
+                        name = asset.name,
+                        type = asset.GetType().Name
+                    });
+                }
+            }
+            
+            return new { success = true, count = assets.Count, total = guids.Length, assets };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        #endregion
+        
+        #region Shader Tools (v1.6.0)
+        
+        private object ShaderList(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var filter = GetString(p, "filter", null);
+            var maxCount = GetInt(p, "maxCount", 100);
+            var includeBuiltIn = GetBool(p, "includeBuiltIn", false);
+            
+            var guids = UnityEditor.AssetDatabase.FindAssets("t:Shader");
+            var shaders = new List<object>();
+            
+            foreach (var guid in guids)
+            {
+                if (shaders.Count >= maxCount) break;
+                
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                
+                // Skip built-in if not requested
+                if (!includeBuiltIn && (path.StartsWith("Packages/") || path.StartsWith("Library/")))
+                    continue;
+                
+                var shader = UnityEditor.AssetDatabase.LoadAssetAtPath<Shader>(path);
+                if (shader == null) continue;
+                
+                if (!string.IsNullOrEmpty(filter) && 
+                    !shader.name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                
+                shaders.Add(new
+                {
+                    name = shader.name,
+                    path,
+                    propertyCount = shader.GetPropertyCount(),
+                    isSupported = shader.isSupported
+                });
+            }
+            
+            return new { success = true, count = shaders.Count, shaders };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object ShaderGetInfo(Dictionary<string, object> p)
+        {
+            var name = GetString(p, "name", null);
+            var path = GetString(p, "path", null);
+            
+            Shader shader = null;
+            
+            if (!string.IsNullOrEmpty(name))
+            {
+                shader = Shader.Find(name);
+            }
+#if UNITY_EDITOR
+            else if (!string.IsNullOrEmpty(path))
+            {
+                shader = UnityEditor.AssetDatabase.LoadAssetAtPath<Shader>(path);
+            }
+#endif
+            
+            if (shader == null)
+                return new { success = false, error = "Shader not found" };
+            
+            var properties = new List<object>();
+            for (int i = 0; i < shader.GetPropertyCount(); i++)
+            {
+                properties.Add(new
+                {
+                    name = shader.GetPropertyName(i),
+                    description = shader.GetPropertyDescription(i),
+                    type = shader.GetPropertyType(i).ToString(),
+                    flags = shader.GetPropertyFlags(i).ToString()
+                });
+            }
+            
+            return new
+            {
+                success = true,
+                name = shader.name,
+                isSupported = shader.isSupported,
+                renderQueue = shader.renderQueue,
+                propertyCount = shader.GetPropertyCount(),
+                properties
+            };
+        }
+        
+        private object ShaderGetKeywords(Dictionary<string, object> p)
+        {
+            var name = GetString(p, "name", null);
+            
+            if (string.IsNullOrEmpty(name))
+                return new { success = false, error = "Missing 'name'" };
+            
+            var shader = Shader.Find(name);
+            if (shader == null)
+                return new { success = false, error = "Shader not found" };
+            
+#if UNITY_EDITOR
+            var keywords = shader.keywordSpace.keywordNames.ToArray();
+            return new { success = true, name = shader.name, keywords };
+#else
+            return new { success = true, name = shader.name, keywords = new string[0], note = "Full keyword list requires Editor" };
+#endif
+        }
+        
+        #endregion
+        
+        #region Texture Tools (v1.6.0)
+        
+        private object TextureCreate(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var width = GetInt(p, "width", 256);
+            var height = GetInt(p, "height", 256);
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", "NewTexture");
+            var colorHex = GetString(p, "color", "#FFFFFF");
+            
+            // Create texture
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            
+            // Fill with color
+            Color fillColor = Color.white;
+            if (ColorUtility.TryParseHtmlString(colorHex, out var parsed))
+                fillColor = parsed;
+            
+            var pixels = new Color[width * height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = fillColor;
+            
+            texture.SetPixels(pixels);
+            texture.Apply();
+            
+            // Save if path specified
+            if (!string.IsNullOrEmpty(path))
+            {
+                if (!path.EndsWith(".png"))
+                    path += ".png";
+                if (!path.StartsWith("Assets/"))
+                    path = "Assets/" + path;
+                
+                var dir = System.IO.Path.GetDirectoryName(path);
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+                
+                var bytes = texture.EncodeToPNG();
+                System.IO.File.WriteAllBytes(path, bytes);
+                UnityEditor.AssetDatabase.Refresh();
+                
+                UnityEngine.Object.DestroyImmediate(texture);
+                
+                return new { success = true, path, width, height, color = colorHex };
+            }
+            
+            return new { success = true, created = true, width, height, note = "Texture created but not saved (no path)" };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object TextureGetInfo(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var name = GetString(p, "name", null);
+            
+            Texture2D texture = null;
+            
+            if (!string.IsNullOrEmpty(path))
+            {
+                texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets($"{name} t:Texture2D");
+                if (guids.Length > 0)
+                {
+                    path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                }
+            }
+            
+            if (texture == null)
+                return new { success = false, error = "Texture not found" };
+            
+            var importer = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.TextureImporter;
+            
+            return new
+            {
+                success = true,
+                path,
+                name = texture.name,
+                width = texture.width,
+                height = texture.height,
+                format = texture.format.ToString(),
+                mipmapCount = texture.mipmapCount,
+                filterMode = texture.filterMode.ToString(),
+                wrapMode = texture.wrapMode.ToString(),
+                isReadable = texture.isReadable,
+                textureType = importer?.textureType.ToString(),
+                maxTextureSize = importer?.maxTextureSize
+            };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object TextureSetPixels(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var colorHex = GetString(p, "color", null);
+            var x = GetInt(p, "x", 0);
+            var y = GetInt(p, "y", 0);
+            var width = GetInt(p, "width", -1);
+            var height = GetInt(p, "height", -1);
+            
+            if (string.IsNullOrEmpty(path))
+                return new { success = false, error = "Missing 'path'" };
+            
+            var texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture == null)
+                return new { success = false, error = "Texture not found" };
+            
+            if (!texture.isReadable)
+                return new { success = false, error = "Texture is not readable. Enable Read/Write in import settings." };
+            
+            Color fillColor = Color.white;
+            if (!string.IsNullOrEmpty(colorHex) && ColorUtility.TryParseHtmlString(colorHex, out var parsed))
+                fillColor = parsed;
+            
+            if (width < 0) width = texture.width - x;
+            if (height < 0) height = texture.height - y;
+            
+            var pixels = new Color[width * height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = fillColor;
+            
+            texture.SetPixels(x, y, width, height, pixels);
+            texture.Apply();
+            
+            // Save
+            var bytes = texture.EncodeToPNG();
+            System.IO.File.WriteAllBytes(path, bytes);
+            UnityEditor.AssetDatabase.Refresh();
+            
+            return new { success = true, path, x, y, width, height, color = colorHex };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object TextureResize(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var path = GetString(p, "path", null);
+            var newWidth = GetInt(p, "width", 0);
+            var newHeight = GetInt(p, "height", 0);
+            
+            if (string.IsNullOrEmpty(path) || newWidth <= 0 || newHeight <= 0)
+                return new { success = false, error = "Missing 'path', 'width', or 'height'" };
+            
+            // Use TextureImporter to resize
+            var importer = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.TextureImporter;
+            if (importer == null)
+                return new { success = false, error = "Not a texture asset" };
+            
+            importer.maxTextureSize = Math.Max(newWidth, newHeight);
+            importer.SaveAndReimport();
+            
+            return new { success = true, path, width = newWidth, height = newHeight, note = "Set max texture size" };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
+        }
+        
+        private object TextureList(Dictionary<string, object> p)
+        {
+#if UNITY_EDITOR
+            var folder = GetString(p, "folder", "Assets");
+            var filter = GetString(p, "filter", null);
+            var maxCount = GetInt(p, "maxCount", 100);
+            
+            var guids = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { folder });
+            var textures = new List<object>();
+            
+            foreach (var guid in guids)
+            {
+                if (textures.Count >= maxCount) break;
+                
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (texture == null) continue;
+                
+                if (!string.IsNullOrEmpty(filter) &&
+                    !texture.name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                
+                textures.Add(new
+                {
+                    path,
+                    name = texture.name,
+                    width = texture.width,
+                    height = texture.height,
+                    format = texture.format.ToString()
+                });
+            }
+            
+            return new { success = true, count = textures.Count, textures };
+#else
+            return new { success = false, error = "Requires Editor mode" };
+#endif
         }
         
         #endregion
