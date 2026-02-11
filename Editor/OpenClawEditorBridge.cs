@@ -198,35 +198,11 @@ namespace OpenClaw.Unity.Editor
             OpenClawConnectionManager.Instance?.Disconnect();
         }
         
-        // Diagnostic counters
-        private static int _updateCallCount = 0;
-        private static double _lastDiagnosticLog = 0;
-        private static bool _firstLogDone = false;
-        
         /// <summary>
         /// EditorApplication.update callback - runs every editor frame.
         /// </summary>
         private static void OnEditorUpdate()
         {
-            _updateCallCount++;
-            
-            // Log once on first update
-            if (!_firstLogDone)
-            {
-                _firstLogDone = true;
-                Debug.Log($"[OpenClaw] EditorBridge OnEditorUpdate started! Init={_initialized}");
-            }
-            
-            // Log diagnostic every 30 seconds (reduced frequency)
-            if (EditorApplication.timeSinceStartup - _lastDiagnosticLog > 30)
-            {
-                _lastDiagnosticLog = EditorApplication.timeSinceStartup;
-                var mgr = OpenClawConnectionManager.Instance;
-                var sessionId = mgr?.SessionId ?? "null";
-                var shortSession = sessionId.Length > 20 ? sessionId.Substring(0, 20) + "..." : sessionId;
-                Debug.Log($"[OpenClaw Diag] Updates: {_updateCallCount}, State: {mgr?.State}, Session: {shortSession}, Init: {_initialized}");
-            }
-            
             if (!_initialized) return;
             
             try
