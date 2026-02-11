@@ -46,7 +46,7 @@
 
 ### Changed
 - Now **~80 tools** total (from 55)
-- Feature parity with major Unity MCP implementations
+- Industry-leading feature set for Unity AI integration
 
 ## [1.4.0] - 2026-02-11
 
