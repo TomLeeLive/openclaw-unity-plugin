@@ -32,8 +32,31 @@
 - `texture.resize` - Resize texture via import settings
 - `texture.list` - List textures in project
 
+#### MCP Resources Protocol
+- 8 resource URIs for direct data access:
+  - `unity://scene/hierarchy` - Scene hierarchy tree
+  - `unity://scene/active` - Active scene info
+  - `unity://project/scripts` - Project scripts list
+  - `unity://project/scenes` - Build settings scenes
+  - `unity://project/assets` - Asset search
+  - `unity://editor/state` - Editor state
+  - `unity://console/logs` - Console logs
+  - `unity://session/info` - Session info
+
+#### Custom Tools API
+- `OpenClawCustomTools` class for extending with project-specific tools
+- Simple registration: `OpenClawCustomTools.Register(name, description, handler)`
+- Full CustomTool class support with categories
+- Auto-integration with tool list and execution
+
+### Fixed
+- JSON parser now supports nested arrays/objects (batch.execute)
+- ConnectionManager array parsing for command parameters
+
 ### Summary
 - **16 new tools** added (total ~100 tools)
+- MCP Resources for direct data access
+- Custom Tools API for extensibility
 - Batch execution for AI workflow optimization
 - ScriptableObject support for data-driven games
 - Shader/Texture tools for visual asset management
