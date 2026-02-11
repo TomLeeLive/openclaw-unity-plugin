@@ -679,21 +679,55 @@ namespace OpenClaw.Unity
                     var key = part.Substring(0, colonIndex).Trim().Trim('"');
                     var value = part.Substring(colonIndex + 1).Trim();
                     
-                    if (value.StartsWith("\"") && value.EndsWith("\""))
-                        result[key] = UnescapeString(value.Substring(1, value.Length - 2));
-                    else if (value == "true")
-                        result[key] = true;
-                    else if (value == "false")
-                        result[key] = false;
-                    else if (value == "null")
-                        result[key] = null;
-                    else if (value.StartsWith("{") && value.EndsWith("}"))
-                        result[key] = ParseJson(value); // Recursively parse nested objects
-                    else if (float.TryParse(value, out var f))
-                        result[key] = f;
-                    else
-                        result[key] = value;
+                    result[key] = ParseJsonValue(value);
                 }
+            }
+            
+            return result;
+        }
+        
+        private object ParseJsonValue(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value == "null")
+                return null;
+            
+            value = value.Trim();
+            
+            if (value.StartsWith("\"") && value.EndsWith("\""))
+                return UnescapeString(value.Substring(1, value.Length - 2));
+            
+            if (value == "true") return true;
+            if (value == "false") return false;
+            
+            if (value.StartsWith("{") && value.EndsWith("}"))
+                return ParseJson(value);
+            
+            if (value.StartsWith("[") && value.EndsWith("]"))
+                return ParseJsonArray(value);
+            
+            if (int.TryParse(value, out var i))
+                return i;
+            if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
+                return f;
+            
+            return value;
+        }
+        
+        private List<object> ParseJsonArray(string json)
+        {
+            var result = new List<object>();
+            if (string.IsNullOrEmpty(json)) return result;
+            
+            json = json.Trim();
+            if (!json.StartsWith("[") || !json.EndsWith("]")) return result;
+            
+            json = json.Substring(1, json.Length - 2);
+            if (string.IsNullOrWhiteSpace(json)) return result;
+            
+            var parts = SplitJsonParts(json);
+            foreach (var part in parts)
+            {
+                result.Add(ParseJsonValue(part.Trim()));
             }
             
             return result;
