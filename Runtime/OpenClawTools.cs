@@ -2184,7 +2184,14 @@ namespace OpenClaw.Unity
         /// </summary>
         public static bool IsKeyPressed(KeyCode keyCode)
         {
-            return _simulatedKeys.TryGetValue(keyCode, out var pressed) && pressed;
+            bool result = _simulatedKeys.TryGetValue(keyCode, out var pressed) && pressed;
+            // Debug log for key state checking
+            if (keyCode == KeyCode.E || keyCode == KeyCode.W)
+            {
+                if (Time.frameCount % 60 == 0) // Log every 60 frames to avoid spam
+                    UnityEngine.Debug.Log($"[OpenClawTools] IsKeyPressed({keyCode}) = {result}, dict has key: {_simulatedKeys.ContainsKey(keyCode)}");
+            }
+            return result;
         }
         
         // Track key state transitions per frame
