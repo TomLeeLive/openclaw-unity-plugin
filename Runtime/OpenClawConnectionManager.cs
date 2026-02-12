@@ -72,6 +72,16 @@ namespace OpenClaw.Unity
         // Main thread execution queue
         private readonly ConcurrentQueue<Action> _mainThreadQueue = new ConcurrentQueue<Action>();
         
+        // Scheduled actions queue (for key press duration, etc.)
+        private readonly List<ScheduledAction> _scheduledActions = new List<ScheduledAction>();
+        private readonly object _scheduleLock = new object();
+        
+        private struct ScheduledAction
+        {
+            public float ExecuteTime;
+            public Action Action;
+        }
+        
         // Timing
         private DateTime _lastHeartbeat = DateTime.MinValue;
         private DateTime _lastPoll = DateTime.MinValue;
@@ -123,6 +133,9 @@ namespace OpenClaw.Unity
                     Debug.LogError($"[OpenClaw] Main thread action failed: {e.Message}");
                 }
             }
+            
+            // Process scheduled actions (for key press duration, etc.)
+            OpenClawTools.ProcessScheduledActions();
             
             // Check if we need to reconnect
             if (State == ConnectionState.Disconnected && _config != null && _config.autoConnect)

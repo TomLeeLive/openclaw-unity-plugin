@@ -24,6 +24,46 @@ namespace OpenClaw.Unity
         private readonly OpenClawBridge _bridge;
         private readonly Dictionary<string, Func<Dictionary<string, object>, object>> _tools;
         
+        // Static scheduling for when no bridge is available
+        private static readonly List<(float executeTime, Action action)> _staticScheduledActions = new List<(float, Action)>();
+        private static readonly object _scheduleLock = new object();
+        
+        /// <summary>
+        /// Process static scheduled actions. Call from Update loop if no bridge is used.
+        /// </summary>
+        public static void ProcessScheduledActions()
+        {
+            if (_staticScheduledActions.Count == 0) return;
+            
+            float currentTime = Time.time;
+            List<Action> toExecute = new List<Action>();
+            
+            lock (_scheduleLock)
+            {
+                for (int i = _staticScheduledActions.Count - 1; i >= 0; i--)
+                {
+                    if (currentTime >= _staticScheduledActions[i].executeTime)
+                    {
+                        toExecute.Add(_staticScheduledActions[i].action);
+                        _staticScheduledActions.RemoveAt(i);
+                    }
+                }
+            }
+            
+            foreach (var action in toExecute)
+            {
+                try { action?.Invoke(); } catch { }
+            }
+        }
+        
+        private static void StaticScheduleAction(float delay, Action action)
+        {
+            lock (_scheduleLock)
+            {
+                _staticScheduledActions.Add((Time.time + delay, action));
+            }
+        }
+        
         public OpenClawTools(OpenClawBridge bridge)
         {
             _bridge = bridge;
@@ -1998,10 +2038,13 @@ namespace OpenClaw.Unity
             }
             else
             {
-                // Fallback: immediate release
-                _simulatedKeys[keyCode] = false;
-                MarkKeyUp(keyCode);
-                QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
+                // Fallback: use static scheduling (processed in Update loop)
+                StaticScheduleAction(duration, () =>
+                {
+                    _simulatedKeys[keyCode] = false;
+                    MarkKeyUp(keyCode);
+                    QueueInputEvent(new InputEvent { Type = InputEventType.KeyUp, KeyCode = keyCode });
+                });
             }
         }
         
