@@ -20,7 +20,7 @@
     "Automation",
     "Code Generation"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {},
   "samples": [
     {
