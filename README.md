@@ -529,6 +529,14 @@ metadata:
 - **TextMeshPro**: Plugin works with or without TMPro (uses reflection)
 - **Unity 6**: Deferred initialization prevents UPM EPIPE crashes
 
+## 🎭 AI Personas for Game Development
+
+Want your AI agent to have a consistent personality while developing your game? [ClawSouls](https://clawsouls.ai) provides open-source persona packages (Soul Spec) that work with OpenClaw and other AI frameworks. Give your coding assistant a specialized game dev personality, or create custom NPC behavior profiles.
+
+- Browse community souls: [clawsouls.ai](https://clawsouls.ai)
+- Soul Spec standard: [soulspec.org](https://soulspec.org)
+- Quick start: `npx clawsouls init my-game-dev --spec 0.4`
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
