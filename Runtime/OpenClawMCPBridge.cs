@@ -386,7 +386,7 @@ namespace OpenClaw.Unity
                 return b ? "true" : "false";
             
             if (obj is int || obj is long || obj is float || obj is double)
-                return obj.ToString();
+                return Convert.ToString(obj, System.Globalization.CultureInfo.InvariantCulture);
             
             // Check for Dictionary with string keys (any value type)
             var objType = obj.GetType();
@@ -531,16 +531,32 @@ namespace OpenClaw.Unity
     public static class OpenClawMCPBridgeEditor
     {
         private static bool _updateHooked = false;
-        
+
+        // Survives domain reloads (script compile, Play mode) — restores a manually
+        // started bridge that would otherwise silently stop (issue #4).
+        private const string MCP_WAS_RUNNING_KEY = "OpenClaw_McpBridgeWasRunning";
+
         static OpenClawMCPBridgeEditor()
         {
+            // Snapshot running state right before every domain reload
+            AssemblyReloadEvents.beforeAssemblyReload += () =>
+            {
+                SessionState.SetBool(MCP_WAS_RUNNING_KEY, OpenClawMCPBridge.Instance.IsRunning);
+            };
+
             EditorApplication.delayCall += () =>
             {
-                // Check if MCP bridge should auto-start
+                // Auto-start if enabled in config, or restore a bridge that was
+                // running before the domain reload
                 var config = OpenClawConfig.Load();
-                if (config != null && config.enableMCPBridge)
+                bool wasRunning = SessionState.GetBool(MCP_WAS_RUNNING_KEY, false);
+                if ((config != null && config.enableMCPBridge) || wasRunning)
                 {
                     StartMCPBridge();
+                    if (wasRunning)
+                    {
+                        Debug.Log("[OpenClaw MCP] Bridge auto-restarted after domain reload");
+                    }
                 }
             };
         }
@@ -577,7 +593,10 @@ namespace OpenClaw.Unity
         public static void StopMCPBridge()
         {
             OpenClawMCPBridge.Instance.Stop();
-            
+
+            // Explicit stop — don't restore after the next domain reload
+            SessionState.SetBool(MCP_WAS_RUNNING_KEY, false);
+
             // Unhook update loop
             if (_updateHooked)
             {

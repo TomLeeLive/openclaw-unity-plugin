@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -585,7 +586,9 @@ namespace OpenClaw.Unity
             }
             else if (value is int || value is float || value is double || value is long)
             {
-                sb.Append(value);
+                // Invariant culture: locales with comma decimal separators (e.g. pl-PL)
+                // would otherwise emit "time":323,60 — malformed JSON (issue openclaw-unity-skill#1)
+                sb.Append(Convert.ToString(value, CultureInfo.InvariantCulture));
             }
             else if (value is Dictionary<string, object> dict)
             {

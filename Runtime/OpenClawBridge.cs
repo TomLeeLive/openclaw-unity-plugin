@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -383,7 +384,8 @@ namespace OpenClaw.Unity
             }
             else if (value is int || value is float || value is double)
             {
-                sb.Append(value);
+                // Invariant culture — comma-decimal locales would emit malformed JSON
+                sb.Append(Convert.ToString(value, CultureInfo.InvariantCulture));
             }
             else if (value is IEnumerable<object> list)
             {
