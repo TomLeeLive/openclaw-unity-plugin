@@ -42,8 +42,37 @@ Claude Code/Desktop → MCP Server → Unity Plugin
 
 | 모드 | 설정 방법 |
 |------|----------|
-| **OpenClaw** | 플러그인 설치만 하면 Gateway가 연결 처리 |
-| **MCP** | MCP Bridge 활성화: `Window > OpenClaw > Start MCP Bridge` |
+| **OpenClaw** | 플러그인 + 게이트웨이 익스텐션 설치. 게이트웨이가 쓰는 브리지 토큰으로 인증 |
+| **MCP** | MCP Bridge 활성화: `Window > OpenClaw > Start MCP Bridge` — 패널에 MCP 클라이언트가 읽을 토큰 파일 경로가 표시됩니다 |
+
+## 🔑 브리지 인증 (v1.7.0)
+
+두 로컬 브리지 모두 실행마다 새로 만드는 비밀값으로 인증합니다. 익명 호출도, 브라우저
+요청도 받지 않습니다.
+
+**게이트웨이 브리지 — 이 애드온이 클라이언트.** OpenClaw 게이트웨이가 Unity 익스텐션을
+로드할 때 랜덤 32바이트 토큰을 `~/.openclaw/unity-bridge.token` 에 `0600` 권한으로
+씁니다. 애드온이 그것을 읽어 `POST /unity/register` 에 `X-OpenClaw-Bridge-Token` 으로
+보내면, 게이트웨이가 세션 토큰을 돌려줍니다. 이후 모든 요청은 그것을
+`X-OpenClaw-Session` 으로 싣습니다. 게이트웨이가 큐에 넣는 명령마다 nonce 가 붙고
+애드온이 결과에 그 nonce 를 되돌려주므로, 다른 로컬 프로세스가 대신 대답할 수 없습니다.
+
+**MCP 브리지 — 이 애드온이 서버.** 브리지를 시작하면 실행마다 토큰을 만들어
+`~/.openclaw/unity-mcp-bridge.token` 에 `0600` 으로 씁니다. `MCP~/index.js` 가 그
+파일을 읽어 `X-OpenClaw-Token` 으로 보냅니다. 모든 요청에 필요하고(없으면 401),
+리스너는 `127.0.0.1` 에만 바인딩하며, `Origin`·`Referer` 가 붙은 요청은 403,
+CORS 헤더는 보내지 않습니다. 1.7.0 이전에는 `Access-Control-Allow-Origin: *` 를 보냈고,
+그래서 열려 있는 아무 웹페이지가 `script.execute` 를 포함한 에디터 도구를 실행할 수
+있었습니다.
+
+| 환경 변수 | 효과 |
+|-----------|------|
+| `OPENCLAW_CONFIG_DIR` / `OPENCLAW_HOME` | 두 토큰 파일의 위치 (기본 `~/.openclaw`) |
+| `OPENCLAW_BRIDGE_TOKEN` | 파일 대신 이 토큰을 양쪽에서 사용 |
+| `OPENCLAW_UNITY_ALLOW_LEGACY_UNAUTHENTICATED=1` | 1.7.0 이전의 인증 없는 MCP 브리지로 되돌림. 기본 꺼짐이고, 켜져 있으면 에디터 로그와 OpenClaw 패널이 크게 경고합니다. |
+
+토큰은 Unity 콘솔에 찍히지 않고 경로만 남습니다. `0600` 은 다른 사용자를 막고,
+**나와 같은 계정** 의 프로세스는 읽을 수 있습니다. SSH 키와 같은 경계입니다.
 
 📖 **[Setup Guide](Documentation~/SETUP_GUIDE.md)** | **[셋업 가이드](Documentation~/SETUP_GUIDE_KO.md)**
 
@@ -437,7 +466,7 @@ MCP 프로토콜의 Resources 기능을 지원합니다. 다음 리소스에 접
 | 설정 | 설명 | 기본값 |
 |------|------|--------|
 | `gatewayUrl` | OpenClaw Gateway URL | `http://localhost:18789` |
-| `apiToken` | 선택적 API 토큰 | (비어있음) |
+| `apiToken` | 브리지 토큰 직접 지정 (보통 비워둡니다 — 게이트웨이가 쓴 `~/.openclaw/unity-bridge.token` 사용) | (비어있음) |
 | `autoConnect` | 시작 시 연결 | `true` |
 | `showStatusOverlay` | Game 뷰에 상태 표시 | `true` |
 | `captureConsoleLogs` | AI용 로그 캡처 | `true` |

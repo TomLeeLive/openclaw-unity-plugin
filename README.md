@@ -47,8 +47,40 @@ Claude Code/Desktop → MCP Server → Unity Plugin
 
 | Mode | Setup |
 |------|-------|
-| **OpenClaw** | Just install plugin, Gateway handles connection |
-| **MCP** | Enable MCP Bridge: `Window > OpenClaw > Start MCP Bridge` |
+| **OpenClaw** | Install plugin + gateway extension; the gateway's bridge token authenticates the connection |
+| **MCP** | Enable MCP Bridge: `Window > OpenClaw > Start MCP Bridge` — the panel shows the token file MCP clients read |
+
+## 🔑 Bridge authentication (v1.7.0)
+
+Both local bridges are authenticated with a per-launch secret. Neither accepts an
+anonymous caller any more, and neither answers a browser.
+
+**Gateway bridge — this add-on is the client.** When the OpenClaw gateway loads
+the Unity extension it writes a random 32-byte token to
+`~/.openclaw/unity-bridge.token` with mode `0600`. This add-on reads it and sends
+it as `X-OpenClaw-Bridge-Token` on `POST /unity/register`; the gateway answers
+with a per-session token that every later request carries as
+`X-OpenClaw-Session`. Each command the gateway queues has a nonce, and this
+add-on echoes that nonce with the result, so no other local process can answer in
+its place.
+
+**MCP bridge — this add-on is the server.** When the bridge starts it generates a
+per-launch token and writes it to `~/.openclaw/unity-mcp-bridge.token` with mode
+`0600`. `MCP~/index.js` reads that file and sends it as `X-OpenClaw-Token`. Every
+request needs it (401 otherwise), the listener binds `127.0.0.1` only, requests
+carrying `Origin` or `Referer` are refused with 403, and no CORS headers are sent
+— before 1.7.0 it replied `Access-Control-Allow-Origin: *`, which let any open web
+page run Editor tools including `script.execute`.
+
+| Variable | Effect |
+|----------|--------|
+| `OPENCLAW_CONFIG_DIR` / `OPENCLAW_HOME` | Where both token files live (default `~/.openclaw`) |
+| `OPENCLAW_BRIDGE_TOKEN` | Use this token instead of the files, on both sides |
+| `OPENCLAW_UNITY_ALLOW_LEGACY_UNAUTHENTICATED=1` | Restore the pre-1.7.0 open MCP bridge. Off by default; the Editor log and the OpenClaw panel say so loudly while it is on. |
+
+Tokens are never written to the Unity console — only the token file's path is.
+The `0600` file keeps other users out; a process running as **you** can read it,
+which is the same boundary that protects your SSH keys.
 
 📖 **[Setup Guide](Documentation~/SETUP_GUIDE.md)** | **[셋업 가이드](Documentation~/SETUP_GUIDE_KO.md)**
 
@@ -401,7 +433,7 @@ Create via `Assets > Create > OpenClaw > Config` and place in `Resources` folder
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `gatewayUrl` | OpenClaw gateway URL | `http://localhost:18789` |
-| `apiToken` | Optional API token | (empty) |
+| `apiToken` | Bridge token override (normally left empty — the gateway's `~/.openclaw/unity-bridge.token` is used) | (empty) |
 | `autoConnect` | Connect on start | `true` |
 | `showStatusOverlay` | Show status in Game view | `true` |
 | `captureConsoleLogs` | Capture logs for AI | `true` |

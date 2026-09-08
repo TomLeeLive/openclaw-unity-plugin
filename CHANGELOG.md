@@ -1,4 +1,52 @@
 # Changelog
+
+## [1.7.0] - 2026-09-09
+
+### Security
+
+- **The MCP bridge requires a token.** `OpenClawMCPBridge` used to serve every
+  request on 127.0.0.1:27182 with no authentication and with
+  `Access-Control-Allow-Origin: *`, so any local process — and any web page open
+  in the user's browser — could run Editor tools, `script.execute` included. It
+  now generates a per-launch token at start, writes it to
+  `~/.openclaw/unity-mcp-bridge.token` with mode `0600`, and requires it as
+  `X-OpenClaw-Token` on every request (401 otherwise). CORS headers are gone,
+  requests carrying `Origin` or `Referer` are refused with 403, non-loopback
+  peers are refused with 403, and the listener no longer binds the `localhost`
+  name — only `127.0.0.1`.
+- **The gateway handshake is authenticated.** `OpenClawConnectionManager` now
+  reads the gateway's per-launch bridge token (`OPENCLAW_BRIDGE_TOKEN`, else
+  `OpenClawConfig.apiToken`, else `~/.openclaw/unity-bridge.token`) and sends it
+  as `X-OpenClaw-Bridge-Token` on `/unity/register`, keeps the per-session token
+  the gateway issues and sends it as `X-OpenClaw-Session` on every poll,
+  heartbeat, result and message, and echoes each command's `nonce` with its
+  result so the gateway can tell a real answer from a forged one. Requires
+  openclaw-unity-skill 1.8.0 on the gateway side.
+- **Tool results and responses are no longer dumped to the console.** The MCP
+  bridge logged the full response JSON on every call; it now logs the status and
+  byte count. Tokens are never logged at all — only the token file's path.
+
+### Added
+
+- `Runtime/OpenClawBridgeAuth.cs` — token generation, `0600` token files in the
+  OpenClaw config dir (`$OPENCLAW_CONFIG_DIR`/`$OPENCLAW_HOME`/`~/.openclaw`),
+  length-constant comparison.
+- The OpenClaw panel's MCP section shows whether the bridge requires a token and
+  where the token file is, with a copy button — and a warning box when legacy
+  unauthenticated mode is on.
+- `OPENCLAW_UNITY_ALLOW_LEGACY_UNAUTHENTICATED=1` restores the pre-1.7.0 open MCP
+  bridge for an old client, with a warning in the Editor log and in the panel.
+
+### Changed
+
+- `MCP~/index.js` reads the token file (or `OPENCLAW_BRIDGE_TOKEN`) and sends it
+  on every request, and explains what to do when the bridge answers 401/403.
+- `OpenClawPlugin~/` (the bundled gateway extension) is now the same code as
+  openclaw-unity-skill 1.8.0, instead of a diverged 1.3.6 copy that still served
+  the unauthenticated `/unity/*` endpoints.
+- `skill/SKILL.md` and `skill/references/tools.md` re-synced with the canonical
+  skill package, which the stale copy had been missing every safety section of.
+
 ## [1.6.0] - 2026-02-11
 
 ### Added - Performance & Power Update 🚀
