@@ -232,6 +232,30 @@ namespace OpenClaw.Unity.Editor
                     Debug.Log("[OpenClaw MCP] URL copied to clipboard");
                 }
                 EditorGUILayout.EndHorizontal();
+
+                // Say out loud whether the bridge is locked, and where the key is.
+                if (bridge.RequiresAuth)
+                {
+                    EditorGUILayout.LabelField(
+                        "Auth: token required (127.0.0.1 only)", EditorStyles.miniLabel);
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField($"Token file: {bridge.TokenPath}", EditorStyles.miniLabel);
+                    if (GUILayout.Button("Copy", GUILayout.Width(50)))
+                    {
+                        GUIUtility.systemCopyBuffer = bridge.TokenPath;
+                        Debug.Log("[OpenClaw MCP] Token file path copied to clipboard");
+                    }
+                    EditorGUILayout.EndHorizontal();
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox(
+                        "Legacy unauthenticated mode is on (" +
+                        OpenClaw.Unity.OpenClawBridgeAuth.AllowLegacyEnvVar +
+                        "). Any process on this machine can run Editor tools, including code " +
+                        "execution. Unset it and restart Unity.",
+                        MessageType.Warning);
+                }
             }
             
             // Error message

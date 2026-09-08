@@ -65,6 +65,17 @@ namespace OpenClaw.Unity
         private CancellationTokenSource _cts;
         private OpenClawTools _tools;
         private bool _disposed;
+
+        // Per-launch shared secret. MCP~/index.js reads it from
+        // <config>/unity-mcp-bridge.token (mode 0600) and sends it as
+        // X-OpenClaw-Token. Never logged.
+        private string _authToken;
+
+        /// <summary>Where the MCP client reads this bridge's token from.</summary>
+        public string TokenPath => OpenClawBridgeAuth.McpTokenPath();
+
+        /// <summary>False when the operator opted back into the open bridge.</summary>
+        public bool RequiresAuth => !OpenClawBridgeAuth.LegacyUnauthenticatedEnabled();
         
         // Queue for pending tool requests (processed on main thread)
         private readonly Queue<PendingToolRequest> _pendingRequests = new Queue<PendingToolRequest>();
@@ -145,9 +156,23 @@ namespace OpenClaw.Unity
             
             try
             {
+                // A per-launch token, written to the config dir with mode 0600.
+                // Anything that cannot read that file gets 401.
+                _authToken = OpenClawBridgeAuth.EnsureMcpToken();
+
+                if (!RequiresAuth)
+                {
+                    Debug.LogWarning(
+                        "[OpenClaw MCP] SECURITY: legacy unauthenticated mode is on (" +
+                        OpenClawBridgeAuth.AllowLegacyEnvVar + "). Any process on this machine " +
+                        "can run Editor tools, including code execution. Unset it and update your " +
+                        "MCP client.");
+                }
+
                 _listener = new HttpListener();
+                // Loopback only. Never localhost-by-name: that can resolve to a
+                // non-loopback address on some machines.
                 _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
-                _listener.Prefixes.Add($"http://localhost:{Port}/");
                 _listener.Start();
                 
                 _cts = new CancellationTokenSource();
@@ -156,7 +181,9 @@ namespace OpenClaw.Unity
                 // Start listening loop
                 Task.Run(() => ListenLoop(_cts.Token));
                 
-                Debug.Log($"[OpenClaw MCP] Bridge started on port {Port}");
+                Debug.Log(
+                    $"[OpenClaw MCP] Bridge started on http://127.0.0.1:{Port} " +
+                    (RequiresAuth ? $"(token: {TokenPath})" : "(UNAUTHENTICATED)"));
             }
             catch (Exception e)
             {
@@ -219,18 +246,39 @@ namespace OpenClaw.Unity
             
             try
             {
-                // CORS headers for local development
-                response.Headers.Add("Access-Control-Allow-Origin", "*");
-                response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
-                
-                if (request.HttpMethod == "OPTIONS")
+                // No CORS headers: this bridge has no browser clients, and a
+                // wildcard here let any open web page drive the Editor.
+                if (!IsLoopback(request))
                 {
-                    response.StatusCode = 200;
-                    response.Close();
+                    await SendJsonResponse(response, 403,
+                        MakeError("The OpenClaw MCP bridge only accepts connections from 127.0.0.1"));
                     return;
                 }
-                
+
+                // Local MCP clients (Claude Code, Cursor) never send Origin or
+                // Referer. Anything that does is a web page probing the bridge.
+                if (!string.IsNullOrEmpty(request.Headers["Origin"]) ||
+                    !string.IsNullOrEmpty(request.Headers["Referer"]))
+                {
+                    await SendJsonResponse(response, 403,
+                        MakeError("Browser-originated requests are not accepted"));
+                    return;
+                }
+
+                if (request.HttpMethod == "OPTIONS")
+                {
+                    await SendJsonResponse(response, 405, MakeError("Method not allowed"));
+                    return;
+                }
+
+                if (!IsAuthorized(request))
+                {
+                    await SendJsonResponse(response, 401, MakeError(
+                        "Missing or invalid " + OpenClawBridgeAuth.McpTokenHeader +
+                        " header. The token is in " + TokenPath + " (owner-readable only)."));
+                    return;
+                }
+
                 var path = request.Url.AbsolutePath.ToLower();
                 
                 switch (path)
@@ -267,6 +315,25 @@ namespace OpenClaw.Unity
         private static Dictionary<string, object> MakeError(string message)
         {
             return new Dictionary<string, object> { { "error", message } };
+        }
+
+        /// <summary>The peer must be on the loopback interface.</summary>
+        private static bool IsLoopback(HttpListenerRequest request)
+        {
+            var endpoint = request.RemoteEndPoint;
+            if (endpoint == null || endpoint.Address == null) return false;
+            return System.Net.IPAddress.IsLoopback(endpoint.Address);
+        }
+
+        /// <summary>
+        /// Every request needs the per-launch token, unless the operator turned
+        /// the old open bridge back on.
+        /// </summary>
+        private bool IsAuthorized(HttpListenerRequest request)
+        {
+            if (!RequiresAuth) return true;
+            var presented = request.Headers[OpenClawBridgeAuth.McpTokenHeader];
+            return OpenClawBridgeAuth.TokensMatch(presented, _authToken);
         }
         
         private async Task HandleToolRequest(HttpListenerRequest request, HttpListenerResponse response)
@@ -367,7 +434,8 @@ namespace OpenClaw.Unity
             response.ContentType = "application/json";
             
             var json = DictionaryToJson(data);
-            Debug.Log($"[OpenClaw MCP] Response ({statusCode}): {json}");
+            // Log the shape, not the payload: results can carry project data.
+            Debug.Log($"[OpenClaw MCP] Response ({statusCode}, {json.Length} bytes)");
             var buffer = Encoding.UTF8.GetBytes(json);
             
             response.ContentLength64 = buffer.Length;

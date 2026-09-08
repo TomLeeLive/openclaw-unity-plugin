@@ -54,6 +54,15 @@ namespace OpenClaw.Unity
         public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
         public string SessionId { get; private set; }
         public string LastError { get; private set; }
+
+        // Per-session bearer token issued by the gateway at registration. Sent
+        // on every later request; never logged.
+        private string _sessionToken;
+
+        // Nonce of the command currently being executed, echoed back with its
+        // result so the gateway can tell our answer from a forged one.
+        private readonly ConcurrentDictionary<string, string> _commandNonces =
+            new ConcurrentDictionary<string, string>();
         public bool IsConnected => State == ConnectionState.Connected;
         
         // Events
@@ -222,13 +231,30 @@ namespace OpenClaw.Unity
                 };
                 
                 var json = DictionaryToJson(registerData);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
-                var response = await _httpClient.PostAsync(
-                    GetFullUrl("unity/register"), 
-                    content, 
-                    _cts.Token
-                );
+
+                // The gateway writes a per-launch bridge token to the OpenClaw
+                // config dir when it loads the Unity extension. Without it the
+                // gateway answers 401 and no session exists.
+                var bridgeToken = OpenClawBridgeAuth.ReadGatewayToken(_config);
+                if (string.IsNullOrEmpty(bridgeToken))
+                {
+                    Debug.LogWarning(
+                        "[OpenClaw] No bridge token found. Start the OpenClaw gateway (it writes " +
+                        OpenClawBridgeAuth.GatewayTokenPath() +
+                        "), or set OPENCLAW_BRIDGE_TOKEN / the API Token field in OpenClawConfig.");
+                }
+
+                HttpResponseMessage response;
+                using (var request = new HttpRequestMessage(
+                    HttpMethod.Post, GetFullUrl("unity/register")))
+                {
+                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                    if (!string.IsNullOrEmpty(bridgeToken))
+                    {
+                        request.Headers.Add(OpenClawBridgeAuth.BridgeTokenHeader, bridgeToken);
+                    }
+                    response = await _httpClient.SendAsync(request, _cts.Token);
+                }
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -238,6 +264,10 @@ namespace OpenClaw.Unity
                     if (result.TryGetValue("sessionId", out var sessionId))
                     {
                         SessionId = sessionId?.ToString();
+                        _sessionToken = result.TryGetValue("sessionToken", out var token)
+                            ? token?.ToString()
+                            : null;
+                        _commandNonces.Clear();
                         SetState(ConnectionState.Connected);
                         _lastHeartbeat = DateTime.UtcNow;
                         Debug.Log($"[OpenClaw] Connected! Session: {SessionId}");
@@ -250,6 +280,22 @@ namespace OpenClaw.Unity
                         LastError = "No session ID in response";
                         SetState(ConnectionState.Error);
                     }
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    LastError =
+                        "Gateway rejected the bridge token (401). Restart the gateway and make sure " +
+                        "this Editor can read " + OpenClawBridgeAuth.GatewayTokenPath() + ".";
+                    SetState(ConnectionState.Error);
+                    Debug.LogWarning($"[OpenClaw] Connection failed: {LastError}");
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    LastError =
+                        "Gateway refused the connection (403). The Unity bridge only accepts " +
+                        "requests from 127.0.0.1 - point gatewayUrl at the local gateway.";
+                    SetState(ConnectionState.Error);
+                    Debug.LogWarning($"[OpenClaw] Connection failed: {LastError}");
                 }
                 else
                 {
@@ -279,6 +325,8 @@ namespace OpenClaw.Unity
             _cts?.Cancel();
             _isPolling = false;
             SessionId = null;
+            _sessionToken = null;
+            _commandNonces.Clear();
             SetState(ConnectionState.Disconnected);
             Debug.Log("[OpenClaw] Disconnected");
         }
@@ -322,21 +370,37 @@ namespace OpenClaw.Unity
             _isPolling = false;
         }
         
+        /// <summary>
+        /// Attach the per-session token issued at registration. Every request
+        /// after /unity/register carries it; the gateway answers 401 without it.
+        /// </summary>
+        private void AddSessionHeader(HttpRequestMessage request)
+        {
+            if (!string.IsNullOrEmpty(_sessionToken))
+            {
+                request.Headers.Add(OpenClawBridgeAuth.SessionTokenHeader, _sessionToken);
+            }
+        }
+
         private async Task PollForCommands()
         {
             if (string.IsNullOrEmpty(SessionId)) return;
             
             _lastPoll = DateTime.UtcNow;
-            
-            var response = await _httpClient.GetAsync(
-                GetFullUrl($"unity/poll?sessionId={SessionId}"),
-                _cts.Token
-            );
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+
+            HttpResponseMessage response;
+            using (var pollRequest = new HttpRequestMessage(
+                HttpMethod.Get, GetFullUrl($"unity/poll?sessionId={SessionId}")))
             {
-                // Session expired, reconnect
-                Debug.LogWarning("[OpenClaw] Session expired, reconnecting...");
+                AddSessionHeader(pollRequest);
+                response = await _httpClient.SendAsync(pollRequest, _cts.Token);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound ||
+                response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                // Session expired or its token was rotated — register again.
+                Debug.LogWarning("[OpenClaw] Session no longer accepted, reconnecting...");
                 SetState(ConnectionState.Reconnecting);
                 await Task.Delay(1000);
                 await Connect();
@@ -373,9 +437,7 @@ namespace OpenClaw.Unity
                 };
                 
                 var json = DictionaryToJson(data);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
-                await _httpClient.PostAsync(GetFullUrl("unity/heartbeat"), content, _cts.Token);
+                await PostAuthenticated("unity/heartbeat", json);
             }
             catch { /* Ignore heartbeat errors */ }
         }
@@ -392,6 +454,15 @@ namespace OpenClaw.Unity
                 if (string.IsNullOrEmpty(requestId))
                 {
                     requestId = command.TryGetValue("toolCallId", out var tc) ? tc?.ToString() : null;
+                }
+
+                // The gateway stamps every command with a nonce and only accepts
+                // the result that carries it back, so another local process
+                // cannot answer in our place.
+                if (!string.IsNullOrEmpty(requestId) &&
+                    command.TryGetValue("nonce", out var n) && n != null)
+                {
+                    _commandNonces[requestId] = n.ToString();
                 }
                 
                 // Handle parameters/arguments - support both field names (gateway uses "arguments")
@@ -459,11 +530,18 @@ namespace OpenClaw.Unity
         {
             try
             {
+                string nonce = null;
+                if (!string.IsNullOrEmpty(requestId))
+                {
+                    _commandNonces.TryRemove(requestId, out nonce);
+                }
+
                 var responseData = new Dictionary<string, object>
                 {
                     { "sessionId", SessionId },
                     { "toolCallId", requestId }, // Use toolCallId for gateway extension compatibility
                     { "requestId", requestId },  // Also include requestId for backwards compatibility
+                    { "nonce", nonce },          // Proves this result answers that command
                     { "tool", tool },
                     { "success", error == null },
                     { "result", result },
@@ -471,9 +549,13 @@ namespace OpenClaw.Unity
                 };
                 
                 var json = DictionaryToJson(responseData);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
-                await _httpClient.PostAsync(GetFullUrl("unity/result"), content, _cts.Token);
+                var response = await PostAuthenticated("unity/result", json);
+                if (response != null && response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                {
+                    Debug.LogWarning(
+                        "[OpenClaw] The gateway dropped this result (409): it did not match the " +
+                        "nonce of a command in flight for this session.");
+                }
             }
             catch (Exception e)
             {
@@ -497,9 +579,7 @@ namespace OpenClaw.Unity
                 };
                 
                 var json = DictionaryToJson(data);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
-                await _httpClient.PostAsync(GetFullUrl("unity/message"), content, _cts.Token);
+                await PostAuthenticated("unity/message", json);
             }
             catch (Exception e)
             {
@@ -507,6 +587,19 @@ namespace OpenClaw.Unity
             }
         }
         
+        /// <summary>
+        /// POST JSON to the gateway with this session's token attached.
+        /// </summary>
+        private async Task<HttpResponseMessage> PostAuthenticated(string endpoint, string json)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Post, GetFullUrl(endpoint)))
+            {
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                AddSessionHeader(request);
+                return await _httpClient.SendAsync(request, _cts.Token);
+            }
+        }
+
         private void SetState(ConnectionState newState)
         {
             if (State == newState) return;
