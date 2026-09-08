@@ -2,6 +2,8 @@
 
 ## [1.7.0] - 2026-09-09
 
+- Fixed: declare `com.unity.ugui` as a package dependency — `Runtime/OpenClawTools.cs` uses `UnityEngine.UI`/`UnityEngine.EventSystems`, so a project without uGUI could not compile the package.
+
 ### Security
 
 - **The MCP bridge requires a token.** `OpenClawMCPBridge` used to serve every
