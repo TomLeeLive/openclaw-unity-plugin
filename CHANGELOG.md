@@ -343,3 +343,5 @@ All notable changes to this project will be documented in this file.
 - Debug tools (hierarchy, screenshot)
 - Status overlay in Game view
 - Configuration via ScriptableObject
+
+- Fixed: declare `com.unity.ugui` as a package dependency — `Runtime/OpenClawTools.cs` uses `UnityEngine.UI`/`UnityEngine.EventSystems`, so a project without uGUI could not compile the package.
