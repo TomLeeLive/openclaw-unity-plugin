@@ -19,10 +19,55 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 const UNITY_HOST = process.env.UNITY_HOST || '127.0.0.1';
 const UNITY_PORT = process.env.UNITY_PORT || 27182;
 const UNITY_URL = `http://${UNITY_HOST}:${UNITY_PORT}`;
+
+const TOKEN_HEADER = 'X-OpenClaw-Token';
+const TOKEN_FILENAME = 'unity-mcp-bridge.token';
+
+function configDir() {
+  return (
+    process.env.OPENCLAW_CONFIG_DIR ||
+    process.env.OPENCLAW_HOME ||
+    join(homedir(), '.openclaw')
+  );
+}
+
+/**
+ * The per-launch token the Unity add-on wrote when it started its MCP bridge.
+ * Read fresh each time: the Editor generates a new one on every launch.
+ */
+function bridgeToken() {
+  if (process.env.OPENCLAW_BRIDGE_TOKEN) {
+    return process.env.OPENCLAW_BRIDGE_TOKEN.trim();
+  }
+  try {
+    const token = readFileSync(join(configDir(), TOKEN_FILENAME), 'utf8').trim();
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
+function bridgeHeaders(extra = {}) {
+  const headers = { ...extra };
+  const token = bridgeToken();
+  if (token) headers[TOKEN_HEADER] = token;
+  return headers;
+}
+
+function authHint() {
+  return (
+    `The Unity MCP bridge rejected this request. Start the bridge in Unity ` +
+    `(Window > OpenClaw > MCP Bridge > Start) and make sure this process can read ` +
+    `${join(configDir(), TOKEN_FILENAME)}.`
+  );
+}
 
 // Dynamic tool list - fetched from Unity
 let cachedTools = [];
@@ -30,7 +75,11 @@ let cachedTools = [];
 // Fetch tools from Unity
 async function fetchUnityTools() {
   try {
-    const response = await fetch(`${UNITY_URL}/tools`);
+    const response = await fetch(`${UNITY_URL}/tools`, { headers: bridgeHeaders() });
+    if (response.status === 401 || response.status === 403) {
+      console.error(`[OpenClaw Unity MCP] ${authHint()}`);
+      return cachedTools;
+    }
     if (response.ok) {
       const data = await response.json();
       cachedTools = (data.tools || []).map(t => ({
@@ -210,10 +259,14 @@ class UnityMCPServer {
     
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: bridgeHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ tool, arguments: args })
     });
-    
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(authHint());
+    }
+
     if (!response.ok) {
       throw new Error(`Unity returned ${response.status}: ${await response.text()}`);
     }
@@ -224,7 +277,7 @@ class UnityMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('[OpenClaw Unity MCP] Server started (v1.6.0 with Resources)');
+    console.error('[OpenClaw Unity MCP] Server started (authenticated bridge)');
   }
 }
 
